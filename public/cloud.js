@@ -3,7 +3,10 @@
 // agora apoiado na API /api (D1 para os dados, Anthropic para a Neide).
 (() => {
   window.NU_SITE = true;
-  const POLL_MS = 15000;
+  const POLL_MS = 10000;
+  // Metadados para o app: atividade recente, status do Google e quem sou eu.
+  window.NU = { activity: [], google: null, me: null };
+  let lastAct = null;
   let cache = {}; // col -> Map(id -> data)
   let loaded = false, sig = "", writeSeq = 0, pending = 0;
   const listeners = new Set();
@@ -30,6 +33,7 @@
       const seq = writeSeq;
       const r = await api("/data");
       if (pending || seq !== writeSeq) return; // uma gravação aconteceu no meio: espera a próxima leitura
+      metaUpdate(r);
       const s = JSON.stringify(r.docs);
       if (s === sig && loaded) return;
       sig = s; cache = {};
@@ -37,6 +41,24 @@
       loaded = true; emit();
     } catch (e) { console.warn("Nosso Universo: falha ao buscar dados", e); }
   }
+  function metaUpdate(r) {
+    const acts = r.activity || [];
+    const newest = acts[0]?.id || 0;
+    const metaSig = newest + "|" + JSON.stringify(r.google || {});
+    const changed = metaSig !== window.NU._sig;
+    // Avisa só o que a OUTRA pessoa fez desde a última leitura (não no primeiro carregamento).
+    if (lastAct !== null && newest > lastAct) {
+      const novas = acts.filter((a) => a.id > lastAct && a.who !== window.NU.me).reverse();
+      for (const a of novas) window.dispatchEvent(new CustomEvent("nu-activity", { detail: a }));
+    }
+    lastAct = newest;
+    window.NU.activity = acts;
+    window.NU.google = r.google || null;
+    window.NU._sig = metaSig;
+    if (changed) window.dispatchEvent(new CustomEvent("nu-meta"));
+  }
+  window.NU.refresh = () => refresh();
+  window.NU.api = api;
   async function write(path, opt) {
     writeSeq++; pending++;
     try { await api(path, opt); } finally { pending--; }
@@ -105,6 +127,7 @@
   const ready = (async () => {
     try {
       const me = await api("/me");
+      window.NU.me = me.who;
       if (me.who === "a" || me.who === "b") {
         localStorage.setItem("nu.eu", JSON.stringify(me.who));
         localStorage.setItem("mural.me", JSON.stringify(me.who));

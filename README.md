@@ -87,6 +87,39 @@ Opcionais:
 
 ---
 
+## Google Agenda (convites para a Raquel e agendas dentro do app)
+
+Como funciona:
+- Eventos criados no app vão para a agenda do Zé. Se o evento é "dos dois", a Raquel recebe convite do Google. Se é só do Zé, fica só na agenda dele. Eventos só da Raquel ficam no app, sem ir para o Google.
+- A cada 15 minutos o app puxa a agenda do Zé e a da Raquel. A da Raquel precisa estar compartilhada com o Zé.
+- Os recados automáticos da Neide também saem por e-mail, pelo Gmail do Zé.
+
+Configuração (uma vez, ~15 min, feita pelo Zé como admin do Workspace mannis.com.br):
+1. https://console.cloud.google.com → seletor de projeto → **New project**: `nosso-universo` (organização mannis.com.br).
+2. **APIs & Services → Library**: ative **Google Calendar API** e **Gmail API**.
+3. **Google Auth Platform** (ou "OAuth consent screen") → Get started:
+   - App name: `Nosso Universo`; support e-mail: o seu.
+   - Audience: **Internal**. Assim não precisa de verificação do Google e a conexão não expira.
+4. **Clients → Create client** → tipo **Web application** → nome `nosso-universo`.
+   - Authorized redirect URI: `https://nosso-universo.jose-ricardo-857.workers.dev/api/google/callback`
+5. Copie o **Client ID** e o **Client secret**. No Worker, em **Settings → Variables and Secrets**, cadastre:
+   - `GOOGLE_CLIENT_ID` (Text)
+   - `GOOGLE_CLIENT_SECRET` (**Secret**)
+6. No app: **Ajustes → Google Agenda → Conectar Google Agenda**. Entre com a conta do Zé e aceite.
+7. Raquel, no Google Agenda dela (computador): **Configurações** → a agenda dela → **Compartilhar com pessoas específicas** → adicione o e-mail do Zé com **Ver todos os detalhes dos eventos**.
+
+## Rotinas automáticas
+
+| Quando (São Paulo) | O que acontece |
+|---|---|
+| a cada 15 min | puxa as agendas do Google |
+| todo dia 07:30 | recado do dia na tela inicial e por e-mail |
+| domingo 19:00 | pauta do Conselho de Casa |
+| dia 1º 08:00 | fechamento do mês |
+
+O e-mail dos recados pode ser desligado em **Ajustes → Rotinas da Neide**.
+Toda mudança fica registrada no "Movimento recente", e quem está com o app aberto recebe um aviso quando o outro mexe em algo.
+
 ## Quanto custa a Neide
 A Neide roda no Claude Opus 5.5 com esforço baixo: US$ 4 por milhão de tokens de entrada e US$ 20 por milhão de saída. O cache de prompt reduz a parte repetida de cada conversa.
 

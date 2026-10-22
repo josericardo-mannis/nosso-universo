@@ -21,5 +21,9 @@
   //   EMAIL_ZE, EMAIL_RAQUEL, ACCESS_TEAM_DOMAIN, ACCESS_AUD (texto) e ANTHROPIC_API_KEY (secreto).
   //   Opcionais: NEIDE_MODEL (padrão claude-opus-5-5) e NEIDE_EFFORT (padrão low).
   "keep_vars": true,
+  //   Opcionais da Google Agenda: GOOGLE_CLIENT_ID (texto) e GOOGLE_CLIENT_SECRET (secreto).
+  "vars": { "APP_URL": "https://nosso-universo.jose-ricardo-857.workers.dev" },
+  // Rotinas (UTC; São Paulo = UTC-3): agendas a cada 15 min, recado 07:30, Conselho domingo 19:00, fechamento dia 1º 08:00.
+  "triggers": { "crons": ["*/15 * * * *", "30 10 * * *", "0 22 * * 0", "0 11 1 * *"] },
   "observability": { "enabled": true }
 }

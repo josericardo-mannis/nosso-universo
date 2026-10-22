@@ -282,7 +282,8 @@ const MURAL='/mural.html';
 
 /* ================= store ================= */
 const COLS=['ev','tasks','bills','fin','vend','wed','ideas','watch','goals','bday'];
-const S={cfg:{}};COLS.forEach(c=>S[c]=[]);
+const RO_COLS=['gcal','brief']; // preenchidas pelo servidor (Google Agenda e recados da Neide)
+const S={cfg:{},activity:[],google:null};[...COLS,...RO_COLS].forEach(c=>S[c]=[]);
 let db=null,sample=null,mode='loading';
 const cfg=()=>({a:'Zé',b:'Raquel',casal:'Gatitos',casamento:'2027-09-18',hora:'15h',local:'Raizeiro dos Milagres',convidados:100,noivado:'2026-01-13',...S.cfg});
 const me=()=>ls.get('nu.eu','');
@@ -290,7 +291,8 @@ async function initStore(){
   try{db=window.claude?.use?await window.claude.use('db'):null}catch{db=null}
   if(db){
     mode='nuvem';
-    COLS.forEach(c=>db.collection(c).onSnapshot(s=>{S[c]=s.docs.map(d=>({...d.data(),id:d.id}));render()},e=>{if(e.code==='revoked'){mode='local';render()}}));
+    S.activity=window.NU?.activity||[];S.google=window.NU?.google||null;
+    [...COLS,...RO_COLS].forEach(c=>db.collection(c).onSnapshot(s=>{S[c]=s.docs.map(d=>({...d.data(),id:d.id}));render()},e=>{if(e.code==='revoked'){mode='local';render()}}));
     db.doc('config/casal').onSnapshot(s=>{S.cfg=s.exists?{...s.data()}:{};render()},()=>{});
   }else{mode='local';COLS.forEach(c=>S[c]=ls.get('nu2.'+c,[]));S.cfg=ls.get('nu2.cfg',{})}
   render();
@@ -325,7 +327,7 @@ const AREAS=['Saúde','Dinheiro','Carreira','Relação','Casa','Lazer','Aprendiz
 const DMES=MES.map((m,i)=>[i+1,m]);
 /* field: [key,label,type,required,options,group] — group 'rot'/'uni' toggles with task type; 'g2'/'g3' lays fields side by side */
 const SCHEMA={
-  ev:{n:'Evento',f:[['titulo','O que é','text',1],['data','Dia','date',1],['hora','Hora','time'],['cat','Tipo','seg',1,()=>Object.keys(ECAT)],['quem','Quem vai','who3'],['repete','Repete','seg',0,()=>[['nao','Não'],['semanal','Toda semana'],['quinzenal','Quinzenal'],['mensal','Todo mês'],['anual','Todo ano']]],['local','Onde','text'],['nota','Notas','textarea']]},
+  ev:{n:'Evento',f:[['titulo','O que é','text',1],['data','Dia','date',1],['hora','Hora','time'],['cat','Tipo','seg',1,()=>Object.keys(ECAT)],['quem','Quem vai','who3'],['repete','Repete','seg',0,()=>[['nao','Não'],['semanal','Toda semana'],['quinzenal','Quinzenal'],['mensal','Todo mês'],['anual','Todo ano']]],['local','Onde','text'],['google','Google Agenda','seg',0,()=>[['sim','Enviar (a Raquel recebe convite se for dos dois)'],['nao','Só no app']]],['nota','Notas','textarea']]},
   tasks:{n:'Tarefa',f:[['titulo','Tarefa','text',1],['categoria','Grupo','seg',1,()=>Object.keys(TCAT)],['tipo','Tipo','seg',1,()=>[['rotina','Recorrente'],['unica','Pontual, com prazo']]],['freq','Frequência','sel',0,()=>FREQ,'rot'],['ultima','Feita por último em','date',0,null,'rot'],['prazo','Prazo','date',0,null,'uni'],['quem','Quem faz (combinado)','who5'],['hoje','Quem faz hoje','who5',0,null,'rot'],['min','Minutos por vez','number',0,null,'rot'],['obs','Combinado / observação','textarea']]},
   bills:{n:'Conta fixa',f:[['nome','Conta','text',1],['valor','Valor (R$)','number',1],['dia','Vence todo dia','number'],['categoria','Categoria','sel',1,()=>FCAT],['quem','Quem paga','who3'],['forma','Como paga','seg',0,()=>['Cartão conjunto','Débito automático','Boleto','Pix','Cartão Raquel','Cartão Zé']],['fim','Última parcela (mês)','month'],['nota','Notas','textarea']]},
   fin:{n:'Lançamento',f:[['desc','Descrição','text',1],['valor','Valor (R$)','number',1],['tipo','Tipo','seg',1,()=>[['despesa','Saiu'],['receita','Entrou']]],['categoria','Categoria','sel',1,()=>FCAT],['data','Data','date',1],['quem','Quem pagou','who3'],['forma','Como pagou','seg',0,()=>['Cartão conjunto','Pix','Cartão Raquel','Cartão Zé','Dinheiro']],['nota','Notas','textarea']]},
@@ -336,7 +338,7 @@ const SCHEMA={
   goals:{n:'Objetivo',f:[['titulo','Objetivo','text',1],['dono','De quem','who3'],['area','Área','sel',1,()=>AREAS],['metrica','Como saber que chegamos','textarea'],['progresso','Progresso (%)','number'],['prazo','Prazo','date'],['prox','Próximo passo','text']]},
   bday:{n:'Data especial',f:[['nome','Nome ou motivo','text',1],['tipo','Tipo','seg',1,()=>[['aniversario','Aniversário'],['casal','Data do casal'],['pet','Cachorros'],['outro','Outra']]],['dia','Dia','number',0,null,'g3'],['mes','Mês','sel',0,()=>[['','—'],...DMES],'g3'],['ano','Ano','number',0,null,'g3'],['lado','Lado','seg',0,()=>[['a','Família do Zé'],['b','Família da Raquel'],['amigos','Amigos'],['casal','Nós']]],['presente','Ideias de presente','textarea']]}
 };
-const DEF={ev:{cat:'Casal',quem:'ambos',repete:'nao'},tasks:{tipo:'rotina',freq:7,quem:'ambos',categoria:'Casa'},bills:{categoria:'Contas da casa',quem:'ambos',forma:'Cartão conjunto'},fin:{tipo:'despesa',categoria:'Mercado',quem:'ambos',forma:'Cartão conjunto'},vend:{status:'negociando',servico:'Outros',parcelas:[]},wed:{status:'afazer',categoria:'Outros',quem:'ambos'},ideas:{status:'ideia'},watch:{tipo:'filme',status:'quero'},goals:{dono:'ambos',area:'Relação',progresso:0},bday:{tipo:'aniversario',lado:'amigos'}};
+const DEF={ev:{cat:'Casal',quem:'ambos',repete:'nao',google:'sim'},tasks:{tipo:'rotina',freq:7,quem:'ambos',categoria:'Casa'},bills:{categoria:'Contas da casa',quem:'ambos',forma:'Cartão conjunto'},fin:{tipo:'despesa',categoria:'Mercado',quem:'ambos',forma:'Cartão conjunto'},vend:{status:'negociando',servico:'Outros',parcelas:[]},wed:{status:'afazer',categoria:'Outros',quem:'ambos'},ideas:{status:'ideia'},watch:{tipo:'filme',status:'quero'},goals:{dono:'ambos',area:'Relação',progresso:0},bday:{tipo:'aniversario',lado:'amigos'}};
 const titleOf=x=>x.titulo||x.nome||x.desc||'item';
 
 /* ================= derived ================= */
@@ -364,6 +366,7 @@ function agenda(from,to){
   for(let m=ym(from);m<=ym(to);m=ymAdd(m,1))S.bills.forEach(b=>{if(!b.dia||!billActive(b,m))return;const [y,mm]=m.split('-').map(Number),d=new Date(y,mm-1,Math.min(+b.dia,28));if(inR(d))out.push({d,k:'conta',c:billPaid(b,m)?'var(--faint)':'var(--warn)',t:'Vence · '+b.nome,s:brl(b.valor)+(billPaid(b,m)?' · pago':''),col:'bills',it:b})});
   S.tasks.filter(t=>t.tipo==='unica'&&!t.feito&&t.prazo).forEach(t=>{const d=parse(t.prazo);if(inR(d))out.push({d,k:'tarefa',c:TCAT[t.categoria]||'var(--cy)',t:'Prazo · '+t.titulo,s:'',col:'tasks',it:t,quem:t.quem})});
   S.wed.filter(w=>w.status!=='feito'&&w.prazo).forEach(w=>{const d=parse(w.prazo);if(inR(d))out.push({d,k:'casorio',c:'var(--ra)',t:'Casório · '+w.titulo,s:'prazo',col:'wed',it:w})});
+  (S.gcal||[]).forEach(g=>{const d=parse(g.data);if(inR(d))out.push({d,k:'google',c:g.cal==='b'?'var(--ra)':'var(--ze)',t:g.titulo,s:'Google · '+(g.cal==='b'?cfg().b:cfg().a)+(g.local?' · '+g.local:''),hora:g.hora||'',link:g.link})});
   const wd=parse(cfg().casamento);if(inR(wd))out.push({d:wd,k:'casorio',c:'var(--gat)',t:'O grande dia',s:cfg().local,hora:cfg().hora});
   return out.sort((a,b)=>a.d-b.d||(a.hora||'99').localeCompare(b.hora||'99'));
 }
@@ -426,6 +429,7 @@ V.inicio=()=>{
   <div class="greet"><b>${saud}, ${esc(nome)}</b><span>${esc(fmtW(t))} · sistema dos ${esc(c.casal)} online</span></div>
   <div class="talk"><button class="solid" data-act="neide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>Falar com a Neide</button><button data-act="brief">Resumo do dia</button></div>
   ${who}
+  ${recadoHTML()}
   <div class="tiles">
    <a class="hud tile wide" href="#agenda"><span class="lb">Agenda<i></i></span>${nextEv?`<span class="big" style="font-size:20px">${esc(nextEv.t)}</span><span class="sm">${esc(fmtW(nextEv.d))}${nextEv.hora?' · '+esc(nextEv.hora):''} · ${rel(diff(nextEv.d,t))}</span>`:`<span class="big" style="font-size:20px">Semana livre</span><span class="sm">Toquem para marcar algo</span>`}</a>
    <a class="hud tile" href="#casa"><span class="lb">Casa<i></i></span><span class="big">${dDone}<small>/${daily.length} hoje</small></span><span class="sm ${late?'alert':''}">${late?late+' atrasada'+(late>1?'s':''):'rotina em dia'}</span></a>
@@ -436,8 +440,22 @@ V.inicio=()=>{
    <a class="hud tile" href="#telas"><span class="lb">Telas<i></i></span><span class="big">${fila}<small>na fila</small></span><span class="sm">${vendo?'vendo '+esc(vendo.titulo):'sorteiem o de hoje'}</span></a>
    <a class="hud tile mural wide" href="${MURAL}"><span class="lb">Mural da Neide<i></i></span><span class="big" style="font-size:18px">Perguntas para completar o sistema</span><span class="sm">Respondam aqui mesmo</span></a>
   </div>
+  ${atividadeHTML()}
   <h2>Provocação da Neide</h2>${sparkHTML()}`;
 };
+function ago(ts){const m=Math.round((Date.now()-ts)/60000);if(m<1)return'agora';if(m<60)return'há '+m+' min';const h=Math.round(m/60);if(h<24)return'há '+h+' h';const d=Math.round(h/24);return d===1?'ontem':'há '+d+' dias'}
+function recadoHTML(){
+  const bs=(S.brief||[]).filter(b=>['dia','semana','mes'].includes(b.id)&&b.texto);
+  if(!bs.length)return '';
+  const b=bs.sort((x,y)=>(y.gerado||'').localeCompare(x.gerado||''))[0];
+  const curto=b.texto.split(/\n+/).slice(0,ui.recadoAberto?99:5);
+  return `<div class="hud info" style="margin-top:14px;color:var(--ink)"><div class="row" style="justify-content:space-between;margin-bottom:6px"><b style="font:700 12px var(--hud);letter-spacing:.2em;text-transform:uppercase;color:var(--cy)">${esc(b.titulo||'Recado da Neide')}</b><span class="small muted">${b.gerado?ago(Date.parse(b.gerado)):''}</span></div>${curto.map(l=>`<p style="margin:0 0 6px">${esc(l)}</p>`).join('')}${b.texto.split(/\n+/).length>5?`<button class="btn sm ghost" data-act="recado">${ui.recadoAberto?'Mostrar menos':'Ler tudo'}</button>`:''}</div>`;
+}
+function atividadeHTML(){
+  const acts=(S.activity||[]).slice(0,6);
+  if(!acts.length)return '';
+  return `<h2>Movimento recente</h2><div class="stack">${acts.map(a=>`<div class="it" style="--c:${PEOPLE()[a.who]?.c||'var(--line2)'}"><div class="main" style="cursor:default"><div class="s" style="margin:0">${tag(a.who)}<span style="color:var(--ink)">${esc(a.acao)} <b>${esc(a.titulo)}</b></span></div></div><div class="r">${ago(a.ts)}</div></div>`).join('')}</div>`;
+}
 let spark=null;
 function sparkHTML(){
   if(spark?.loading)return `<div class="hud info">A Neide está pensando em vocês…</div>`;
@@ -447,11 +465,13 @@ function sparkHTML(){
 
 /* ---------- Agenda ---------- */
 function aRow(a){
-  return `<div class="it" style="--c:${a.c}"><div class="main" ${a.col&&a.it?editAttr(a.col,a.it.id):''}><div class="t">${esc(a.t)}</div><div class="s">${a.quem?tag(a.quem):''}${a.s?`<span>${esc(a.s)}</span>`:''}</div></div><div class="r">${a.hora?`<b>${esc(a.hora)}</b>`:''}${{ev:'evento',data:'data',conta:'conta',tarefa:'prazo',casorio:'casório'}[a.k]}</div></div>`;
+  const inner=`<div class="t">${esc(a.t)}</div><div class="s">${a.quem?tag(a.quem):''}${a.s?`<span>${esc(a.s)}</span>`:''}</div>`;
+  const main=a.link?`<a class="main" href="${esc(a.link)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${inner}</a>`:`<div class="main" ${a.col&&a.it?editAttr(a.col,a.it.id):''}>${inner}</div>`;
+  return `<div class="it" style="--c:${a.c}">${main}<div class="r">${a.hora?`<b>${esc(a.hora)}</b>`:''}${{ev:'evento',data:'data',conta:'conta',tarefa:'prazo',casorio:'casório',google:'google'}[a.k]}</div></div>`;
 }
 V.agenda=()=>{
   const t=today(),tab=ui.tab.agenda,f=ui.agf,filt=a=>f==='tudo'||a.k===f;
-  const chips=[['tudo','Tudo'],['ev','Eventos'],['data','Datas'],['conta','Contas'],['tarefa','Prazos'],['casorio','Casório']].map(([v,l])=>`<button class="chip ${f===v?'on':''}" data-act="agf" data-v="${v}">${l}</button>`).join('');
+  const chips=[['tudo','Tudo'],['ev','Eventos'],['google','Google'],['data','Datas'],['conta','Contas'],['tarefa','Prazos'],['casorio','Casório']].map(([v,l])=>`<button class="chip ${f===v?'on':''}" data-act="agf" data-v="${v}">${l}</button>`).join('');
   const WD=['seg','ter','qua','qui','sex','sáb','dom'];
   let top='',list='';
   if(tab==='semana'){
@@ -636,7 +656,23 @@ V.ajustes=()=>{const c=cfg();return `<div class="hud" style="padding:14px">
   <button class="btn" data-act="savecfg" style="width:100%">Salvar</button></div>
   <h2>Neste celular</h2><div class="hud info"><div class="row" style="margin-bottom:10px">Eu sou <button class="chip ${me()==='a'?'on':''}" data-act="iam" data-v="a">${esc(c.a)}</button><button class="chip ${me()==='b'?'on':''}" data-act="iam" data-v="b">${esc(c.b)}</button></div>
   <div class="row">Neide fala em voz alta <button class="chip ${ls.get('nu.voz',false)?'on':''}" data-act="voz">${ls.get('nu.voz',false)?'Ligado':'Desligado'}</button></div></div>
-  <h2>Instalar no celular</h2><div class="hud info">Abram este link no navegador do celular e usem “Adicionar à tela de início”. O Nosso Universo vira um ícone, como um app.</div>`};
+  ${googleHTML(c)}
+  <h2>Rotinas da Neide</h2><div class="hud info">Todo dia às 07:30 sai o recado do dia. Domingo às 19:00, a pauta do Conselho de Casa. No dia 1º, o fechamento do mês. ${S.google?.email_on?'Os recados também chegam por e-mail para os dois.':'Com a Google Agenda conectada, os recados também chegam por e-mail.'}
+   ${window.NU?`<div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="rotina" data-v="dia">Gerar recado agora</button><button class="btn sm ghost" data-act="rotina" data-v="semana">Gerar pauta da semana</button><button class="chip ${c.emailRecados==='nao'?'':'on'}" data-act="emailtog">E-mail ${c.emailRecados==='nao'?'desligado':'ligado'}</button></div>`:''}</div>
+  <h2>Instalar no celular</h2><div class="hud info">Abram este link no navegador do celular e usem “Adicionar à tela de início”. O Nosso Universo vira um ícone, como um app.</div>
+  <h2>Novidades</h2><div class="hud info"><p style="margin:0 0 8px"><b>23/10</b> Google Agenda nos dois sentidos (com convite para a Raquel), recados automáticos da Neide, aviso quando o outro mexe em algo e movimento recente na tela inicial.</p><p style="margin:0"><b>22/10</b> Site próprio na Cloudflare, login só para os dois, banco de dados próprio e microfone de verdade na Neide.</p></div>`};
+function googleHTML(c){
+  const g=S.google;
+  if(!window.NU)return '';
+  const st=g?.sync?.status||{},nm={a:c.a,b:c.b};
+  const linhas=Object.entries(st).map(([k,v])=>v.ok?`${esc(nm[k])}: ${v.n} eventos`:`${esc(nm[k])}: ${esc(v.erro||'erro')}`).join(' · ');
+  const quando=g?.sync?.at?` · atualizado ${ago(g.sync.at)}`:'';
+  const estado=!g?'Carregando…':!g.configured?'Falta configurar o app do Google no painel (o Claude guia o passo a passo).':g.connected?`Conectada à conta <b>${esc(g.email)}</b>.<br>${linhas}${quando}`:g.broken?'A conexão com o Google expirou. Conecte de novo.':'Ainda não conectada.';
+  return `<h2>Google Agenda</h2><div class="hud info">${estado}
+   <div class="row" style="margin-top:10px">${g?.configured&&!g.connected&&me()==='a'?'<button class="btn sm" data-act="gconnect">Conectar Google Agenda</button>':''}${g?.connected?'<button class="btn sm ghost" data-act="gsync">Sincronizar agora</button>':''}${g?.connected&&me()==='a'?'<button class="btn sm danger" data-act="gdisc">Desconectar</button>':''}</div>
+   <div class="f" style="margin:12px 0 6px"><label for="c_calb">Agenda da ${esc(c.b)} (e-mail do Google)</label><input id="c_calb" value="${esc(c.calRaquel||'raquelggn94@gmail.com')}"></div>
+   <p class="small" style="margin:0">Eventos criados aqui vão para a agenda do ${esc(c.a)}. Quando são “dos dois”, a ${esc(c.b)} recebe convite. As agendas dos dois aparecem no app a cada 15 minutos. Para a agenda da ${esc(c.b)} aparecer, ela compartilha a agenda dela com o ${esc(c.a)} uma vez: Google Agenda → Configurações → a agenda dela → Compartilhar com pessoas específicas → e-mail do ${esc(c.a)} → “Ver todos os detalhes dos eventos”.</p></div>`;
+}
 
 /* ================= sheets / forms ================= */
 let openedItem=null,neideOpen=false;
@@ -688,8 +724,9 @@ function compact(col){
   const f={ev:x=>`${x.data} ${x.hora||''} ${x.titulo} [${x.cat}${x.repete&&x.repete!=='nao'?', '+x.repete:''}]`,tasks:x=>`${x.titulo} [${x.categoria}, ${x.tipo==='unica'?'prazo '+(x.prazo||'—')+(x.feito?', feito':''):freqL(x.freq)+', próxima '+iso(taskDue(x))}, ${x.quem}]`,
     bills:x=>`${x.nome} R$${x.valor} dia ${x.dia||'?'} [${billPaid(x,m)?'pago':'a pagar'} em ${m}]`,fin:x=>`${x.data} ${x.tipo} ${x.desc} R$${x.valor} (${x.categoria}, ${x.quem})`,
     vend:x=>`${x.nome} [${x.servico}, ${x.status}] total ${x.total||0}, pago ${parcPaid(x)}`,wed:x=>`${x.titulo} [${x.status}] prazo ${x.prazo||'—'}`,ideas:x=>`${x.titulo} [${x.status}]`,
+    gcal:x=>`${x.data} ${x.hora||''} ${x.titulo} [agenda ${x.cal==='b'?'da Raquel':'do Zé'}]`,
     watch:x=>`${x.titulo} (${x.tipo}, ${x.status})`,goals:x=>`${x.titulo} [${x.dono}] ${x.progresso||0}%`,bday:x=>`${x.nome} ${x.dia&&x.mes?pad(x.dia)+'/'+pad(x.mes):'sem data'} [${x.tipo}, ${x.lado}]`};
-  let a=S[col]||[];if(col==='fin')a=a.filter(x=>until(x.data)>-60);if(col==='ev')a=a.filter(x=>(x.repete&&x.repete!=='nao')||until(x.data)>=-7);
+  let a=S[col]||[];if(col==='fin')a=a.filter(x=>until(x.data)>-60);if(col==='ev')a=a.filter(x=>(x.repete&&x.repete!=='nao')||until(x.data)>=-7);if(col==='gcal')a=a.filter(x=>until(x.data)>=-1).sort((x,y)=>(x.data+x.hora).localeCompare(y.data+y.hora));
   return a.slice(0,80).map(x=>`- id:${x.id} ${f[col](x)}`).join('\n')||'(vazio)';
 }
 function schemaTxt(){return Object.entries(SCHEMA).map(([c,s])=>`${c} (${s.n}): `+s.f.filter(f=>f[2]!=='parcelas').map(([key,,type,req,opts])=>`${key}${req?'*':''}=${type==='who3'?'a|b|ambos':type==='who5'?'a|b|ambos|diarista|auto':type==='sel'||type==='seg'?opts().map(o=>Array.isArray(o)?o[0]:o).join('|'):type}`).join(', ')).join('\n')+'\nvend.parcelas = [{mes:"AAAA-MM",valor,pago}] ; bday usa dia, mes (1-12), ano'}
@@ -697,7 +734,7 @@ function sysTxt(){const c=cfg(),eu=me();return `Você é a NEIDE, assistente vir
 Contexto: casamento ${c.casamento} às ${c.hora} no ${c.local}; cachorros Jordan (2 passeios por dia) e Pitta (tapete higiênico); diarista às quartas.
 Regras: registre tudo com as ferramentas sem pedir confirmação do que dá para deduzir ("sábado" = próximo sábado; gasto sem data = hoje; quem não dito = ${eu||'ambos'}; "a gente" = ambos). Para e-mail colado, extraia o evento. Só use apagar quando pedirem claramente. Termine dizendo em uma frase o que fez.
 Coleções (* obrigatório):\n${schemaTxt()}
-AGENDA:\n${compact('ev')}\nTAREFAS:\n${compact('tasks')}\nCONTAS FIXAS:\n${compact('bills')}\nFORNECEDORES:\n${compact('vend')}`}
+AGENDA:\n${compact('ev')}\nGOOGLE AGENDA (só leitura, não edite):\n${compact('gcal')}\nTAREFAS:\n${compact('tasks')}\nCONTAS FIXAS:\n${compact('bills')}\nFORNECEDORES:\n${compact('vend')}`}
 const TOOLS=[
   {name:'criar',description:'Cria item numa coleção. Datas AAAA-MM-DD.',inputSchema:{type:'object',properties:{colecao:{type:'string',enum:COLS},campos:{type:'object'}},required:['colecao','campos']},
    async execute({colecao,campos}){if(!SCHEMA[colecao])throw new Error('coleção inválida');const o={...DEF[colecao],...campos,criado:T()};const miss=SCHEMA[colecao].f.filter(f=>f[3]&&(o[f[0]]==null||o[f[0]]==='')).map(f=>f[0]);if(miss.length)throw new Error('faltam: '+miss.join(', '));['valor','freq','min','total','dia','mes','ano','progresso','custo'].forEach(x=>{if(o[x]!=null&&o[x]!=='')o[x]=+o[x]});await save(colecao,o);act('+ '+SCHEMA[colecao].n+': '+titleOf(o));return 'ok'}},
@@ -707,7 +744,7 @@ const TOOLS=[
    async execute({colecao,id}){const it=(S[colecao]||[]).find(x=>x.id===id);if(!it)throw new Error('id não encontrado');await del(colecao,id);act('✕ '+titleOf(it));return 'ok'}},
   {name:'marcar_feita',description:'Marca uma tarefa (tasks) como feita hoje.',inputSchema:{type:'object',properties:{id:{type:'string'}},required:['id']},async execute({id}){const t=S.tasks.find(x=>x.id===id);if(!t)throw new Error('id não encontrado');await markTask(t,true);act('✓ '+t.titulo);return 'ok'}},
   {name:'pagar_conta',description:'Marca conta fixa (bills) como paga no mês AAAA-MM (padrão: mês atual).',inputSchema:{type:'object',properties:{id:{type:'string'},mes:{type:'string'}},required:['id']},async execute({id,mes}){const b=S.bills.find(x=>x.id===id);if(!b)throw new Error('id não encontrado');const m=mes||ym(today());await save('bills',{...b,pagos:[...new Set([...(b.pagos||[]),m])]});act('✓ pago: '+b.nome);return 'ok'}},
-  {name:'listar',description:'Lista itens de uma coleção com ids.',inputSchema:{type:'object',properties:{colecao:{type:'string',enum:COLS}},required:['colecao']},execute:({colecao})=>compact(colecao)}
+  {name:'listar',description:'Lista itens de uma coleção com ids. "gcal" são os eventos das agendas do Google (só leitura).',inputSchema:{type:'object',properties:{colecao:{type:'string',enum:[...COLS,'gcal']}},required:['colecao']},execute:({colecao})=>compact(colecao)}
 ];
 function act(t){chat.push({role:'act',content:t});paintChat()}
 function openNeide(prefill){
@@ -809,6 +846,12 @@ document.addEventListener('click',async e=>{
     case 'mods':openMods();break;
     case 'iam':ls.set('nu.eu',v);toast('Oi, '+PEOPLE()[v].l+'!');render();break;
     case 'voz':ls.set('nu.voz',!ls.get('nu.voz',false));render();break;
+    case 'recado':ui.recadoAberto=!ui.recadoAberto;render();break;
+    case 'gconnect':location.href='/api/google/connect';break;
+    case 'gsync':try{toast('Sincronizando…');const r=await window.NU.api('/google/sync',{method:'POST'});await window.NU.refresh();const bad=Object.values(r.status||{}).find(x=>!x.ok);toast(bad?'Uma agenda não sincronizou: '+bad.erro:'Agendas atualizadas')}catch(err){toast(err.message||'Não sincronizou')}break;
+    case 'gdisc':if(!a.dataset.sure){a.dataset.sure='1';a.textContent='Toque de novo para desconectar';break}try{await window.NU.api('/google/disconnect',{method:'POST'});await window.NU.refresh();toast('Google desconectado')}catch(err){toast(err.message||'Não desconectou')}break;
+    case 'rotina':try{a.disabled=true;a.textContent='A Neide está escrevendo…';await window.NU.api('/rotina/'+v,{method:'POST'});await window.NU.refresh();toast('Recado pronto na tela inicial');go('inicio')}catch(err){toast(err.message||'Não deu agora')}break;
+    case 'emailtog':await saveCfg({emailRecados:cfg().emailRecados==='nao'?'sim':'nao'});break;
     case 'spark':sparkRun();break;
     case 'agf':ui.agf=v;render();break;
     case 'wk':ui.sel=iso(addDays(parse(ui.sel),+v));render();break;
@@ -826,7 +869,7 @@ document.addEventListener('click',async e=>{
     case 'wnext':{const w=S.watch.find(x=>x.id===id);if(!w)break;const nx=w.status==='quero'?(w.tipo==='filme'?'visto':'vendo'):'visto',upd={...w,status:nx,data:nx==='visto'?T():w.data||''};await save('watch',upd);if(nx==='visto'){toast('Foi pro histórico. Deem nota!');openForm('watch',upd)}else toast('Bom episódio!');break}
     case 'checkin':openCheckin();break;
     case 'review':review();break;
-    case 'savecfg':await saveCfg({a:$('#c_a').value.trim()||'Zé',b:$('#c_b').value.trim()||'Raquel',casal:$('#c_casal').value.trim()||'Gatitos',tom:$('#c_tom').value,casamento:$('#c_cas').value||'2027-09-18',luaDeMel:+$('#c_lua').value||'',tetoDelivery:+$('#c_dlv').value||'',convidados:+$('#c_conv').value||100});toast('Ajustes salvos');break;
+    case 'savecfg':await saveCfg({a:$('#c_a').value.trim()||'Zé',b:$('#c_b').value.trim()||'Raquel',casal:$('#c_casal').value.trim()||'Gatitos',tom:$('#c_tom').value,casamento:$('#c_cas').value||'2027-09-18',luaDeMel:+$('#c_lua').value||'',tetoDelivery:+$('#c_dlv').value||'',convidados:+$('#c_conv').value||100,...($('#c_calb')?{calRaquel:$('#c_calb').value.trim()}:{})});toast('Ajustes salvos');break;
     case 'addparc':{const rows=$('#parcs').querySelectorAll('.parc'),last=rows[rows.length-1]?.querySelector('input')?.value;$('#parcs').insertAdjacentHTML('beforeend',parcInput({mes:last?ymAdd(last,1):ym(today()),valor:''}));break}
     case 'genparc':{const tot=+($('#f_total')?.value)||0;if(!tot){toast('Preencham o valor total antes');break}const box=$('#parcs');if(!box.querySelector('.parc'))for(let i=0;i<10;i++)box.insertAdjacentHTML('beforeend',parcInput({mes:ymAdd(ym(today()),i),valor:''}));
       const rows=[...box.querySelectorAll('.parc')],paid=rows.filter(r=>r.querySelector('.chk.on')).reduce((s,r)=>s+(+r.querySelectorAll('input')[1].value||0),0),open=rows.filter(r=>!r.querySelector('.chk.on')),each=Math.round((tot-paid)/Math.max(1,open.length)*100)/100;
@@ -838,6 +881,9 @@ document.addEventListener('click',async e=>{
 });
 
 /* ================= boot ================= */
+addEventListener('nu-meta',()=>{S.activity=window.NU?.activity||[];S.google=window.NU?.google||null;render()});
+addEventListener('nu-activity',e=>{const a=e.detail;toast(`${PEOPLE()[a.who]?.l||'Alguém'} ${a.acao} ${a.titulo}`)});
+(()=>{const q=new URLSearchParams(location.search).get('google');if(!q)return;history.replaceState(null,'',location.pathname+location.hash);setTimeout(()=>toast({conectado:'Google Agenda conectada!',cancelado:'Conexão com o Google cancelada',expirou:'O link expirou, tentem de novo',falhou:'O Google não devolveu a autorização. Tentem de novo'}[q]||q),600)})();
 route();initStore();
 </script>
 
