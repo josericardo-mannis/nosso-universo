@@ -33,7 +33,7 @@ function whoFor(email, env) {
   const ra = (env.EMAIL_RAQUEL || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
   if (ze.includes(email)) return "a";
   if (ra.includes(email)) return "b";
-  return ze.length || ra.length ? null : "ambos"; // sem lista configurada, qualquer login do Access entra
+  return null; // fora da lista (ou lista ainda não configurada): ninguém entra
 }
 
 /* ---------- preparo do banco ----------
