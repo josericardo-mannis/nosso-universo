@@ -13,6 +13,7 @@ const COLS = new Set(["ev", "tasks", "bills", "fin", "vend", "wed", "ideas", "wa
 const READ_ONLY = new Set(["gcal", "brief"]); // preenchidas pelo servidor, o app só lê
 const ID_RE = /^[A-Za-z0-9_\-.~:@+]{1,120}$/;
 const MAX_DOC_BYTES = 256 * 1024;
+const SYNC_EVERY = 5 * 60 * 1000;
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -184,7 +185,15 @@ async function handleApi(request, env, ctx) {
 
   if (parts[0] === "data" && request.method === "GET") {
     const [docs, activity, google] = await Promise.all([allDocs(env), recentActivity(env), googleStatus(env)]);
-    return json({ docs, activity, google, now: Date.now() });
+    // Reserva para o agendador: com o app aberto, sincroniza (e convida a Raquel) no máximo a cada 5 min.
+    const now = Date.now();
+    if (google.connected && !(google.sync?.at > now - SYNC_EVERY)) {
+      const claim = await env.DB.prepare(
+        "INSERT INTO kv (k, v) VALUES ('sync_claim', ?1) ON CONFLICT (k) DO UPDATE SET v = excluded.v WHERE CAST(kv.v AS INTEGER) < ?2",
+      ).bind(String(now), now - SYNC_EVERY).run();
+      if (claim.meta.changes) ctx.waitUntil(getDoc(env, "config", "casal").then((cfg) => pullCalendars(env, cfg || {})).catch((err) => console.error("sync", err)));
+    }
+    return json({ docs, activity, google, now });
   }
 
   if (parts[0] === "doc") {
