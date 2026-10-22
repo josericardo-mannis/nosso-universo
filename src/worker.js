@@ -120,7 +120,7 @@ async function recentActivity(env) {
 /* ---------- gravação de um documento pelo app ---------- */
 async function writeDoc(env, ctx, col, id, data, email, who) {
   const prev = await getDoc(env, col, id);
-  if (col === "ev" && prev?.gid && !data.gid) data.gid = prev.gid; // não perder o vínculo com o Google
+  if (col === "ev" && prev?.gid && !data.gid) { data.gid = prev.gid; data.gcalId = prev.gcalId || ""; } // não perder o vínculo com o Google
   if (prev && JSON.stringify(prev) === JSON.stringify(data)) return;
   await putDoc(env, col, id, data, email);
   await logActivity(env, who, col, id, describe(col, prev, data), titleOf(data, id));
@@ -135,7 +135,7 @@ async function syncEvent(env, id) {
   const res = await mirrorEvent(env, id, cur);
   if (res && "gid" in res) {
     const now = await getDoc(env, "ev", id);
-    if (now) await putDoc(env, "ev", id, { ...now, gid: res.gid }, "google");
+    if (now) await putDoc(env, "ev", id, { ...now, gid: res.gid, gcalId: res.gcalId || "" }, "google");
   }
 }
 
@@ -204,7 +204,7 @@ async function handleApi(request, env, ctx) {
       await env.DB.prepare("DELETE FROM docs WHERE col = ?1 AND id = ?2").bind(col, id).run();
       if (prev) {
         await logActivity(env, who, col, id, "apagou", titleOf(prev, id));
-        if (col === "ev" && prev.gid) ctx.waitUntil(deleteMirror(env, prev.gid).catch(() => {}));
+        if (col === "ev" && prev.gid) ctx.waitUntil(deleteMirror(env, prev.gid, prev.gcalId).catch(() => {}));
       }
       return json({ ok: true });
     }
@@ -254,7 +254,7 @@ export default {
   async scheduled(event, env, ctx) {
     await ensureDb(env);
     const job = {
-      "*/15 * * * *": async () => pullCalendars(env, (await getDoc(env, "config", "casal")) || {}),
+      "*/5 * * * *": async () => pullCalendars(env, (await getDoc(env, "config", "casal")) || {}),
       "30 10 * * *": () => runRoutine(env, "dia", putDoc),
       "0 22 * * 0": () => runRoutine(env, "semana", putDoc),
       "0 11 1 * *": () => runRoutine(env, "mes", putDoc),

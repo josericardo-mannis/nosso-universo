@@ -366,7 +366,7 @@ function agenda(from,to){
   for(let m=ym(from);m<=ym(to);m=ymAdd(m,1))S.bills.forEach(b=>{if(!b.dia||!billActive(b,m))return;const [y,mm]=m.split('-').map(Number),d=new Date(y,mm-1,Math.min(+b.dia,28));if(inR(d))out.push({d,k:'conta',c:billPaid(b,m)?'var(--faint)':'var(--warn)',t:'Vence · '+b.nome,s:brl(b.valor)+(billPaid(b,m)?' · pago':''),col:'bills',it:b})});
   S.tasks.filter(t=>t.tipo==='unica'&&!t.feito&&t.prazo).forEach(t=>{const d=parse(t.prazo);if(inR(d))out.push({d,k:'tarefa',c:TCAT[t.categoria]||'var(--cy)',t:'Prazo · '+t.titulo,s:'',col:'tasks',it:t,quem:t.quem})});
   S.wed.filter(w=>w.status!=='feito'&&w.prazo).forEach(w=>{const d=parse(w.prazo);if(inR(d))out.push({d,k:'casorio',c:'var(--ra)',t:'Casório · '+w.titulo,s:'prazo',col:'wed',it:w})});
-  (S.gcal||[]).forEach(g=>{const d=parse(g.data);if(inR(d))out.push({d,k:'google',c:g.cal==='b'?'var(--ra)':'var(--ze)',t:g.titulo,s:'Google · '+(g.cal==='b'?cfg().b:cfg().a)+(g.local?' · '+g.local:''),hora:g.hora||'',link:g.link})});
+  (S.gcal||[]).forEach(g=>{const d=parse(g.data);if(inR(d))out.push({d,k:'google',c:g.cal==='b'?'var(--ra)':g.cal==='g'?'var(--gat)':'var(--ze)',t:g.titulo,s:'Google · '+(g.cal==='b'?cfg().b:g.cal==='g'?'Gatitos':cfg().a)+(g.local?' · '+g.local:''),hora:g.hora||'',link:g.link})});
   const wd=parse(cfg().casamento);if(inR(wd))out.push({d:wd,k:'casorio',c:'var(--gat)',t:'O grande dia',s:cfg().local,hora:cfg().hora});
   return out.sort((a,b)=>a.d-b.d||(a.hora||'99').localeCompare(b.hora||'99'));
 }
@@ -430,6 +430,7 @@ V.inicio=()=>{
   <div class="talk"><button class="solid" data-act="neide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>Falar com a Neide</button><button data-act="brief">Resumo do dia</button></div>
   ${who}
   ${recadoHTML()}
+  ${S.google?.configured&&!S.google.connected&&eu==='a'?`<div class="hud info" style="margin-top:14px;border-color:rgba(255,194,75,.5)"><b style="color:var(--gat)">Falta um passo para a Google Agenda.</b> Toque abaixo, entre com a conta ${esc('@mannis.com.br')} e clique em Permitir.<div style="margin-top:10px"><button class="btn sm" data-act="gconnect">Conectar Google Agenda</button></div></div>`:''}
   <div class="tiles">
    <a class="hud tile wide" href="#agenda"><span class="lb">Agenda<i></i></span>${nextEv?`<span class="big" style="font-size:20px">${esc(nextEv.t)}</span><span class="sm">${esc(fmtW(nextEv.d))}${nextEv.hora?' · '+esc(nextEv.hora):''} · ${rel(diff(nextEv.d,t))}</span>`:`<span class="big" style="font-size:20px">Semana livre</span><span class="sm">Toquem para marcar algo</span>`}</a>
    <a class="hud tile" href="#casa"><span class="lb">Casa<i></i></span><span class="big">${dDone}<small>/${daily.length} hoje</small></span><span class="sm ${late?'alert':''}">${late?late+' atrasada'+(late>1?'s':''):'rotina em dia'}</span></a>
@@ -660,18 +661,18 @@ V.ajustes=()=>{const c=cfg();return `<div class="hud" style="padding:14px">
   <h2>Rotinas da Neide</h2><div class="hud info">Todo dia às 07:30 sai o recado do dia. Domingo às 19:00, a pauta do Conselho de Casa. No dia 1º, o fechamento do mês. ${S.google?.email_on?'Os recados também chegam por e-mail para os dois.':'Com a Google Agenda conectada, os recados também chegam por e-mail.'}
    ${window.NU?`<div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="rotina" data-v="dia">Gerar recado agora</button><button class="btn sm ghost" data-act="rotina" data-v="semana">Gerar pauta da semana</button><button class="chip ${c.emailRecados==='nao'?'':'on'}" data-act="emailtog">E-mail ${c.emailRecados==='nao'?'desligado':'ligado'}</button></div>`:''}</div>
   <h2>Instalar no celular</h2><div class="hud info">Abram este link no navegador do celular e usem “Adicionar à tela de início”. O Nosso Universo vira um ícone, como um app.</div>
-  <h2>Novidades</h2><div class="hud info"><p style="margin:0 0 8px"><b>23/10</b> Google Agenda nos dois sentidos (com convite para a Raquel), recados automáticos da Neide, aviso quando o outro mexe em algo e movimento recente na tela inicial.</p><p style="margin:0"><b>22/10</b> Site próprio na Cloudflare, login só para os dois, banco de dados próprio e microfone de verdade na Neide.</p></div>`};
+  <h2>Novidades</h2><div class="hud info"><p style="margin:0 0 8px"><b>23/10</b> Agenda <b>Gatitos</b> no Google: criou lá, a Raquel é convidada sozinha. Google Agenda nos dois sentidos (com convite para a Raquel), recados automáticos da Neide, aviso quando o outro mexe em algo e movimento recente na tela inicial.</p><p style="margin:0"><b>22/10</b> Site próprio na Cloudflare, login só para os dois, banco de dados próprio e microfone de verdade na Neide.</p></div>`};
 function googleHTML(c){
   const g=S.google;
   if(!window.NU)return '';
-  const st=g?.sync?.status||{},nm={a:c.a,b:c.b};
+  const st=g?.sync?.status||{},nm={a:c.a,b:c.b,g:'Gatitos'};
   const linhas=Object.entries(st).map(([k,v])=>v.ok?`${esc(nm[k])}: ${v.n} eventos`:`${esc(nm[k])}: ${esc(v.erro||'erro')}`).join(' · ');
   const quando=g?.sync?.at?` · atualizado ${ago(g.sync.at)}`:'';
   const estado=!g?'Carregando…':!g.configured?'Falta configurar o app do Google no painel (o Claude guia o passo a passo).':g.connected?`Conectada à conta <b>${esc(g.email)}</b>.<br>${linhas}${quando}`:g.broken?'A conexão com o Google expirou. Conecte de novo.':'Ainda não conectada.';
   return `<h2>Google Agenda</h2><div class="hud info">${estado}
    <div class="row" style="margin-top:10px">${g?.configured&&!g.connected&&me()==='a'?'<button class="btn sm" data-act="gconnect">Conectar Google Agenda</button>':''}${g?.connected?'<button class="btn sm ghost" data-act="gsync">Sincronizar agora</button>':''}${g?.connected&&me()==='a'?'<button class="btn sm danger" data-act="gdisc">Desconectar</button>':''}</div>
    <div class="f" style="margin:12px 0 6px"><label for="c_calb">Agenda da ${esc(c.b)} (e-mail do Google)</label><input id="c_calb" value="${esc(c.calRaquel||'raquelggn94@gmail.com')}"></div>
-   <p class="small" style="margin:0">Eventos criados aqui vão para a agenda do ${esc(c.a)}. Quando são “dos dois”, a ${esc(c.b)} recebe convite. As agendas dos dois aparecem no app a cada 15 minutos. Para a agenda da ${esc(c.b)} aparecer, ela compartilha a agenda dela com o ${esc(c.a)} uma vez: Google Agenda → Configurações → a agenda dela → Compartilhar com pessoas específicas → e-mail do ${esc(c.a)} → “Ver todos os detalhes dos eventos”.</p></div>`;
+   <p class="small" style="margin:0">Ao conectar, aparece uma agenda <b>Gatitos</b> no Google do ${esc(c.a)}. Todo evento criado nela, pelo Google ou pelo app (“dos dois”), convida a ${esc(c.b)} automaticamente em até 5 minutos. Eventos só do ${esc(c.a)} vão para a agenda principal dele. As agendas aparecem aqui a cada 5 minutos. Para a agenda da ${esc(c.b)} aparecer, ela compartilha a agenda dela com o ${esc(c.a)} uma vez: Google Agenda → Configurações → a agenda dela → Compartilhar com pessoas específicas → e-mail do ${esc(c.a)} → “Ver todos os detalhes dos eventos”.</p></div>`;
 }
 
 /* ================= sheets / forms ================= */

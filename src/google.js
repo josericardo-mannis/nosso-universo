@@ -9,9 +9,11 @@ const SCOPES = [
   "openid",
   "email",
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.app.created", // criar e cuidar da agenda "Gatitos"
   "https://www.googleapis.com/auth/gmail.send",
 ];
 const API = "https://www.googleapis.com/calendar/v3";
+const DAY_MS = 864e5;
 
 /* ---------- guarda de chaves (tabela kv, nunca exposta pela API de dados) ---------- */
 export async function kvGet(env, k) {
@@ -147,11 +149,51 @@ async function gfetch(env, path, opt = {}) {
 /* ---------- puxar agendas para o app ---------- */
 const safeId = (s) => s.replace(/[^A-Za-z0-9_\-.~:@+]/g, "_").slice(0, 120);
 
+/* ---------- agenda "Gatitos": tudo que entra nela convida a Raquel ---------- */
+export async function ensureGatitosCal(env) {
+  const g = await kvGet(env, "google");
+  if (!g || g.broken) return null;
+  if (g.gatitosCal) return g.gatitosCal;
+  try {
+    const cal = await gfetch(env, "/calendars", {
+      method: "POST",
+      body: JSON.stringify({ summary: "Gatitos", description: "Eventos do casal. Tudo que for criado aqui convida a Raquel automaticamente (Nosso Universo).", timeZone: TZ }),
+    });
+    await kvSet(env, "google", { ...g, gatitosCal: cal.id });
+    return cal.id;
+  } catch (err) {
+    console.error("criar agenda Gatitos", err);
+    return null;
+  }
+}
+
+async function inviteSweep(env, calId, raquel) {
+  if (!calId || !raquel) return 0;
+  const q = new URLSearchParams({ timeMin: new Date(Date.now() - DAY_MS).toISOString(), singleEvents: "false", maxResults: "250", showDeleted: "false" });
+  const j = await gfetch(env, `/calendars/${encodeURIComponent(calId)}/events?${q}`);
+  let invited = 0;
+  for (const e of j.items || []) {
+    if (e.status === "cancelled" || e.recurringEventId) continue; // convida pela série, não por ocorrência
+    const att = e.attendees || [];
+    if (att.some((a) => (a.email || "").toLowerCase() === raquel)) continue;
+    await gfetch(env, `/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(e.id)}?sendUpdates=all`, {
+      method: "PATCH",
+      body: JSON.stringify({ attendees: [...att, { email: raquel }] }),
+    });
+    invited++;
+  }
+  return invited;
+}
+
 export async function pullCalendars(env, cfg) {
   const g = await kvGet(env, "google");
   if (!g || g.broken || !googleConfigured(env)) return { ok: false, reason: "not_connected" };
   const raquel = String(cfg.calRaquel || env.EMAIL_RAQUEL || "").split(",")[0].trim().toLowerCase();
+  const gatitos = await ensureGatitosCal(env);
+  let convites = 0;
+  try { convites = await inviteSweep(env, gatitos, raquel); } catch (err) { console.error("convites Gatitos", err); }
   const cals = [["a", "primary"]];
+  if (gatitos) cals.push(["g", gatitos]);
   if (raquel) cals.push(["b", raquel]);
   const timeMin = new Date(Date.now() - 7 * 864e5).toISOString();
   const timeMax = new Date(Date.now() + 120 * 864e5).toISOString();
@@ -169,7 +211,7 @@ export async function pullCalendars(env, cfg) {
           if (e.status === "cancelled") continue;
           if (e.extendedProperties?.shared?.nu) continue; // criado pelo próprio app: já está em "ev"
           const org = (e.organizer?.email || "").toLowerCase();
-          if (who === "b" && org === g.email) continue; // convite do Zé: já aparece do lado dele
+          if (who === "b" && (org === g.email || (gatitos && org === gatitos.toLowerCase()))) continue; // convite do Zé ou da agenda Gatitos: já aparece do lado dele
           if (who === "a" && raquel && org === raquel) continue; // convite da Raquel: já aparece do lado dela
           const me = (e.attendees || []).find((x) => x.self);
           if (me?.responseStatus === "declined") continue;
@@ -194,8 +236,8 @@ export async function pullCalendars(env, cfg) {
   const ins = env.DB.prepare("INSERT OR REPLACE INTO docs (col, id, data, updated_at, updated_by) VALUES ('gcal', ?1, ?2, ?3, 'google')");
   for (const d of docs) if (status[d.data.cal]?.ok) stmts.push(ins.bind(d.id, JSON.stringify(d.data), now));
   if (stmts.length) await env.DB.batch(stmts);
-  await kvSet(env, "google_sync", { at: now, status });
-  return { ok: true, status };
+  await kvSet(env, "google_sync", { at: now, status, convites, gatitos: !!gatitos });
+  return { ok: true, status, convites };
 }
 
 /* ---------- espelhar eventos do app na agenda do Zé (e convidar a Raquel) ---------- */
@@ -217,34 +259,39 @@ function eventBody(id, d, attendees) {
   };
 }
 
-// Retorna { gid } quando o id do evento no Google mudou (criado ou removido), senão null.
+// Eventos "dos dois" vão para a agenda Gatitos (com convite para a Raquel); os só do Zé, para a agenda principal dele.
+// Retorna { gid, gcalId } quando o vínculo com o Google mudou (criado, movido ou removido), senão null.
 export async function mirrorEvent(env, id, d) {
   const g = await kvGet(env, "google");
   if (!g || g.broken || !googleConfigured(env) || !d?.data) return null;
-  const gid = d.gid || "";
+  let gid = d.gid || "";
+  const cur = d.gcalId || "primary";
   const skip = d.google === "nao" || d.quem === "b"; // eventos só da Raquel ficam na agenda dela
   if (skip) {
-    if (gid) await gfetch(env, `/calendars/primary/events/${encodeURIComponent(gid)}?sendUpdates=all`, { method: "DELETE" }).catch(() => {});
-    return gid ? { gid: "" } : null;
+    if (gid) await deleteMirror(env, gid, cur);
+    return gid ? { gid: "", gcalId: "" } : null;
   }
+  const gatitos = d.quem === "ambos" ? await ensureGatitosCal(env) : null;
+  const target = gatitos || "primary";
   const raquel = String(env.EMAIL_RAQUEL || "").split(",")[0].trim();
   const attendees = d.quem === "ambos" && raquel ? [{ email: raquel }] : [];
   const body = eventBody(id, d, attendees);
+  if (gid && cur !== target) { await deleteMirror(env, gid, cur); gid = ""; }
   if (gid) {
     try {
-      await gfetch(env, `/calendars/primary/events/${encodeURIComponent(gid)}?sendUpdates=all`, { method: "PATCH", body: JSON.stringify(body) });
+      await gfetch(env, `/calendars/${encodeURIComponent(target)}/events/${encodeURIComponent(gid)}?sendUpdates=all`, { method: "PATCH", body: JSON.stringify(body) });
       return null;
     } catch (err) {
       if (err.status !== 404 && err.status !== 410) throw err;
     }
   }
-  const j = await gfetch(env, "/calendars/primary/events?sendUpdates=all", { method: "POST", body: JSON.stringify(body) });
-  return { gid: j.id };
+  const j = await gfetch(env, `/calendars/${encodeURIComponent(target)}/events?sendUpdates=all`, { method: "POST", body: JSON.stringify(body) });
+  return { gid: j.id, gcalId: target };
 }
 
-export async function deleteMirror(env, gid) {
+export async function deleteMirror(env, gid, calId = "primary") {
   if (!gid) return;
-  await gfetch(env, `/calendars/primary/events/${encodeURIComponent(gid)}?sendUpdates=all`, { method: "DELETE" }).catch(() => {});
+  await gfetch(env, `/calendars/${encodeURIComponent(calId || "primary")}/events/${encodeURIComponent(gid)}?sendUpdates=all`, { method: "DELETE" }).catch(() => {});
 }
 
 /* ---------- e-mail pelo Gmail do Zé ---------- */

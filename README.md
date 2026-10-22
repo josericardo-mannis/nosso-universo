@@ -90,8 +90,9 @@ Opcionais:
 ## Google Agenda (convites para a Raquel e agendas dentro do app)
 
 Como funciona:
-- Eventos criados no app vão para a agenda do Zé. Se o evento é "dos dois", a Raquel recebe convite do Google. Se é só do Zé, fica só na agenda dele. Eventos só da Raquel ficam no app, sem ir para o Google.
-- A cada 15 minutos o app puxa a agenda do Zé e a da Raquel. A da Raquel precisa estar compartilhada com o Zé.
+- Ao conectar, o app cria a agenda **Gatitos** no Google do Zé. Tudo que for criado nela, pelo Google ou pelo app (eventos "dos dois"), convida a Raquel automaticamente em até 5 minutos.
+- Eventos só do Zé vão para a agenda principal dele. Eventos só da Raquel ficam no app, sem ir para o Google.
+- A cada 5 minutos o app puxa a agenda do Zé e a da Raquel. A da Raquel precisa estar compartilhada com o Zé.
 - Os recados automáticos da Neide também saem por e-mail, pelo Gmail do Zé.
 
 Configuração (uma vez, ~15 min, feita pelo Zé como admin do Workspace mannis.com.br):
@@ -112,7 +113,7 @@ Configuração (uma vez, ~15 min, feita pelo Zé como admin do Workspace mannis.
 
 | Quando (São Paulo) | O que acontece |
 |---|---|
-| a cada 15 min | puxa as agendas do Google |
+| a cada 5 min | puxa as agendas do Google e convida a Raquel nos eventos da agenda Gatitos |
 | todo dia 07:30 | recado do dia na tela inicial e por e-mail |
 | domingo 19:00 | pauta do Conselho de Casa |
 | dia 1º 08:00 | fechamento do mês |
