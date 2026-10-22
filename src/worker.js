@@ -253,12 +253,16 @@ export default {
   // Agendador (horários em UTC; São Paulo = UTC-3): ver "triggers" em wrangler.jsonc.
   async scheduled(event, env, ctx) {
     await ensureDb(env);
+    const mark = (extra) => env.DB.prepare("INSERT INTO kv (k, v) VALUES ('cron_last', ?1) ON CONFLICT (k) DO UPDATE SET v = excluded.v")
+      .bind(JSON.stringify({ cron: event.cron, at: Date.now(), ...extra })).run().catch(() => {});
+    await mark({ fase: "inicio" });
     const job = {
       "*/5 * * * *": async () => pullCalendars(env, (await getDoc(env, "config", "casal")) || {}),
       "30 10 * * *": () => runRoutine(env, "dia", putDoc),
       "0 22 * * 0": () => runRoutine(env, "semana", putDoc),
       "0 11 1 * *": () => runRoutine(env, "mes", putDoc),
     }[event.cron];
-    if (job) ctx.waitUntil(job().catch((err) => console.error("rotina", event.cron, err)));
+    if (!job) return mark({ fase: "sem rotina para este horário" });
+    ctx.waitUntil(job().then(() => mark({ fase: "ok" })).catch((err) => { console.error("rotina", event.cron, err); return mark({ fase: "erro", erro: String(err?.stack || err).slice(0, 800) }); }));
   },
 };
