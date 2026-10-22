@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#02070B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gatitos">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<script src="/cloud.js"></script>
+</head>
+<body>
+<title>Mural dos Gatitos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of question cards grouped by area, HUD-styled, with a sticky progress header. */
+:root{
+  --bg:#02070B; --panel:rgba(8,30,40,.78); --panel2:#0A2230; --line:rgba(51,225,255,.18); --line2:rgba(51,225,255,.42);
+  --cy:#33E1FF; --cy2:#9AF3FF; --ink:#E2F9FF; --dim:#86AEBA; --faint:#557885;
+  --ze:#4DA3FF; --ra:#FF6FAE; --gat:#FFC24B; --ok:#3EF0A0;
+  --wm:"Orbitron","Rajdhani",system-ui,sans-serif; --hud:"Rajdhani","Arial Narrow",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);
+  background-image:radial-gradient(ellipse at 50% -10%,rgba(51,225,255,.16),transparent 60%)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 60px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:linear-gradient(var(--bg) 80%,transparent);padding-block:16px 12px}
+.brand{display:flex;align-items:center;gap:12px}
+.ring{width:44px;height:44px;flex:none}
+h1{font:800 18px var(--wm);letter-spacing:.18em;margin:0;color:var(--cy);text-shadow:0 0 14px rgba(51,225,255,.5)}
+.sub{font:600 12px var(--hud);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.prog{display:flex;align-items:center;gap:10px;margin-top:12px}
+.bar{flex:1;height:6px;background:var(--panel2);border-radius:3px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--cy);box-shadow:0 0 10px var(--cy);transition:width .4s}
+.prog b{font:700 15px var(--hud);font-variant-numeric:tabular-nums;color:var(--cy)}
+.me{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap;font:600 13px var(--hud);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.chip{border:1px solid var(--line2);background:transparent;color:var(--ink);border-radius:3px;padding:6px 12px;font:600 14px var(--hud);letter-spacing:.06em;cursor:pointer}
+.chip.on{background:var(--cy);color:var(--bg);border-color:var(--cy)}
+.chip.ze.on{background:var(--ze);border-color:var(--ze)}.chip.ra.on{background:var(--ra);border-color:var(--ra)}
+.intro{color:var(--dim);margin:10px 0 0;max-width:62ch}
+h2{font:700 15px var(--hud);letter-spacing:.24em;text-transform:uppercase;color:var(--cy);margin:34px 0 12px;display:flex;align-items:center;gap:10px}
+h2::after{content:"";flex:1;height:1px;background:var(--line2)}
+h2 small{font-weight:600;color:var(--faint);letter-spacing:.1em}
+.q{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:10px}
+.q::before,.q::after{content:"";position:absolute;width:10px;height:10px;border:2px solid var(--cy);opacity:.7}
+.q::before{top:-1px;left:-1px;border-right:0;border-bottom:0}.q::after{bottom:-1px;right:-1px;border-left:0;border-top:0}
+.q.done{border-color:rgba(62,240,160,.35)}.q.done::before,.q.done::after{border-color:var(--ok)}
+.q h3{font:600 15.5px/1.4 var(--body);margin:0 0 4px}
+.q .why{font-size:13px;color:var(--dim);margin:0 0 12px}
+.q .why b{color:var(--cy2);font-weight:500}
+textarea,input{width:100%;min-width:0;background:rgba(2,7,11,.6);border:1px solid var(--line2);border-radius:3px;color:var(--ink);padding:10px 12px;font:inherit}
+textarea{min-height:72px;resize:vertical}
+textarea:focus,input:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(51,225,255,.15)}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.grid{display:grid;grid-template-columns:1fr 130px;gap:6px 10px;align-items:center}
+.grid.b3{grid-template-columns:1fr 110px 70px}
+.grid label{font-size:14px;min-width:0;overflow-wrap:anywhere}
+.grid .h{font:600 11px var(--hud);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.foot{display:flex;align-items:center;gap:10px;margin-top:10px;font:600 12px var(--hud);letter-spacing:.08em;color:var(--faint);text-transform:uppercase;flex-wrap:wrap}
+.foot .sp{flex:1}
+.save{border:0;background:var(--cy);color:var(--bg);font:700 14px var(--hud);letter-spacing:.12em;text-transform:uppercase;padding:8px 16px;border-radius:3px;cursor:pointer}
+.save:disabled{opacity:.35;cursor:default}
+.who{display:inline-block;padding:1px 6px;border-radius:2px;color:var(--bg);font-weight:700}
+.note{border:1px dashed var(--line2);border-radius:4px;padding:14px;color:var(--dim);font-size:14px;margin-top:10px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--cy);color:var(--bg);font:700 14px var(--hud);letter-spacing:.1em;text-transform:uppercase;padding:10px 18px;border-radius:3px;z-index:20}
+:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.spin{animation:spin 14s linear infinite;transform-origin:50% 50%}.spin2{animation:spin 22s linear infinite reverse;transform-origin:50% 50%}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:460px){.grid{grid-template-columns:1fr 112px}.grid.b3{grid-template-columns:1fr 96px 58px}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="brand">
+    <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="none" stroke="#33E1FF" stroke-width="1.5" stroke-dasharray="30 6 10 6" class="spin"/><circle cx="22" cy="22" r="14" fill="none" stroke="#33E1FF" stroke-width="2.5" stroke-dasharray="4 3" opacity=".7" class="spin2"/><circle cx="22" cy="22" r="6" fill="#33E1FF" opacity=".9"/></svg>
+    <div><h1>N.E.I.D.E</h1><div class="sub">Mural dos Gatitos · perguntas da Neide</div></div>
+  </div>
+  <div class="prog"><div class="bar"><span id="pbar" style="width:0%"></span></div><b id="pnum">0/0</b></div>
+  <div class="me">Quem está respondendo
+    <button class="chip ze" data-me="a">Zé</button><button class="chip ra" data-me="b">Raquel</button></div>
+</header>
+<p style="margin:10px 0 0"><a href="/" style="color:var(--cy);font:700 13px var(--hud);letter-spacing:.14em;text-transform:uppercase">‹ Voltar ao app</a></p><p class="intro">Oi, Gatitos. Eu sou a Neide. Já li o que estava no Drive (orçamento e pagamentos da Éden, a planilha Gastos Gatitos, a divisão de tarefas da casa e os diagnósticos do Ecossistema Vida). Isso aqui é só o que eu não consegui descobrir sozinha. Respondam no tempo de vocês, em qualquer ordem. Cada resposta salva na hora para os dois.</p>
+<div id="status" class="note" hidden></div>
+<main id="list"></main>
+<div class="note">Os minutos de cada tarefa da casa e quem fica com cada uma daqui pra frente vocês preenchem direto no app, na tela Casa › Divisão. Lá fica mais fácil de ver a conta fechando.</div>
+</div>
+
+<script>
+const Q=[
+ {g:'Vocês e a Neide',items:[
+  {id:'apelidos',t:'Como a Neide pode chamar cada um?',w:'Vi “Keka” na planilha Gastos Gatitos. Posso chamar a Raquel assim? E o Zé, tem apelido?',k:'text'},
+  {id:'tom',t:'Qual o jeito da Neide falar com vocês?',k:'choice',o:['Engraçada e provocadora','Carinhosa','Direta ao ponto','Mistura de tudo']},
+  {id:'voz',t:'A Neide deve responder em voz alta?',w:'Dá para ligar ou desligar em cada celular depois.',k:'choice',o:['Sim, sempre','Só quando eu pedir','Não, só texto']},
+  {id:'proibido',t:'Tem algo que a Neide nunca deve fazer ou falar?',k:'text'}
+ ]},
+ {g:'Datas que não podem passar',items:[
+  {id:'nivers',t:'Data de nascimento de cada pessoa da família',w:'Nomes tirados do diagnóstico de Família. Formato <b>dd/mm/aaaa</b>; se não souber o ano, só dd/mm.',k:'dates',list:['Raquel','Zé','Tani (sogra)','Wilson (sogro)','Lucas (cunhado)','Suzane (cunhada)','Pedro (sobrinho)','Patrícia (mãe do Zé)','José Renato (pai do Zé)','José Eduardo (irmão)','Marina (cunhada)','José Haruo (sobrinho)','José Henrique (irmão)']},
+  {id:'amigos',t:'Que amigos e padrinhos não podem ficar sem parabéns?',w:'Nome e data. Ex.: “Diego 12/03, Carol 30/07”.',k:'text'},
+  {id:'caes',t:'Jordan e Pitta: aniversário (ou dia da adoção) e quando vencem as vacinas?',w:'O diagnóstico diz que as vacinas estão com renovação urgente. Já foram aplicadas?',k:'text'},
+  {id:'datascasal',t:'Confirmam as datas do casal?',w:'Juntos desde <b>09/11/2022</b> (faz 4 anos daqui a pouco), namoro <b>13/01/2023</b>, noivado <b>13/01/2026</b>. Alguma outra data especial?',k:'text'}
+ ]},
+ {g:'Agenda',items:[
+  {id:'fixos',t:'Quais compromissos fixos da semana entram na agenda?',w:'Achei: jogo do Real Madruga aos sábados, campeonato às segundas (a cada 15 dias), treinos juntos 2 a 3 vezes por semana, diarista às quartas. Dias e horários certos?',k:'text'},
+  {id:'conselho',t:'O Conselho de Casa (20 minutos para agenda, casa, dinheiro e casamento) fica em qual dia?',k:'choice',o:['Domingo 20h','Domingo 21h','Segunda 21h','Outro (escrevo abaixo)'],more:true},
+  {id:'agendas',t:'Quais agendas e e-mails vocês querem conectados?',w:'O Zé usa Google Agenda para tudo. E a Raquel: Gmail pessoal, e-mail do Nubank, outra?',k:'text'}
+ ]},
+ {g:'Casa e cachorros',items:[
+  {id:'diarista',t:'Diarista: nome, dia, valor da diária e como vocês pagam?',k:'text'},
+  {id:'freqs',t:'Quantas vezes por semana acontece cada uma?',w:'Ficaram em branco na planilha: cozinhar, lavar e estender roupa, lixo e reciclagem.',k:'text'},
+  {id:'carro',t:'Venda do carro (prevista para novembro): já tem preço ou comprador? Para onde vai o dinheiro?',k:'choice',o:['Fundo do casamento','Reserva de emergência','Lua de mel','Ainda não decidimos'],more:true},
+  {id:'aluguel',t:'Quando começou o contrato do apartamento?',w:'Com essa data eu calculo o dia em que dá para sair sem multa (a partir de 18 meses).',k:'text'},
+  {id:'docs',t:'Passaporte italiano do Zé: já tem data no consulado? Algum outro documento vencendo?',k:'text'}
+ ]},
+ {g:'Grana',items:[
+  {id:'modelo',t:'Como vocês dividem as contas da casa hoje?',w:'A planilha mostra a Raquel pagando e o Zé acertando no fim do mês, mais o Splitwise. O diagnóstico fala de cartão conjunto novo.',k:'choice',o:['Tudo no cartão conjunto','Raquel paga e o Zé acerta','Cada um paga algumas contas','Mistura (explico abaixo)'],more:true},
+  {id:'divisao',t:'A divisão entre vocês é…',k:'choice',o:['50/50','Proporcional à renda','Depende da conta']},
+  {id:'contas',t:'Confirmem valor e dia de vencimento das contas fixas',w:'Valores tirados da planilha Gastos Gatitos (meses mais recentes). Corrijam o que estiver errado.',k:'bills',list:[['Aluguel',2850],['Condomínio / IPTU',''],['Internet',100],['TV / streaming',145.95],['Seguro pet',88.80],['Seguro incêndio',17.45],['Amazon Prime',30],['Cartão iFood',1037.50],['Geladeira (parcela)',172.50],['La Decora (parcela)',110],['Robô aspirador (parcela)',52.03],['Cobasi',39.54]]},
+  {id:'faltou',t:'Faltou alguma conta fixa?',w:'Luz, gás, celular, plano de saúde, academia, ração…',k:'text'},
+  {id:'delivery',t:'Quanto vocês querem gastar no máximo por mês com delivery?',w:'Hoje são 2 a 4 pedidos por semana. A Neide avisa quando estiver chegando perto.',k:'text'},
+  {id:'guardar',t:'Quanto querem guardar por mês, e para quê?',w:'O plano do Ecossistema fala em fundo de emergência.',k:'text'}
+ ]},
+ {g:'Casamento · 18/09/2027',items:[
+  {id:'outubro',t:'As parcelas de outubro/2026 já foram pagas?',w:'DJ Momx R$ 2.612,50 · Éden R$ 900 · Isa Ricardo R$ 2.272,73 · Lucas Bispo R$ 1.714,29 · SkyDrinks R$ 1.100 · Julia Pak R$ 2.310. Total R$ 10.909,52.',k:'choice',o:['Todas pagas','Nenhuma ainda','Algumas (escrevo quais)'],more:true},
+  {id:'fornec',t:'Confirmem o que cada fornecedor faz',w:'Pelo orçamento: Isa Ricardo = decoração, Lucas Bispo = foto e vídeo, Julia Pak = vestido, SkyDrinks = bar de drinks, Keffas = sax da cerimônia. Ficou a dúvida: <b>Luana Souza</b> é make e cabelo? <b>DJ Momx</b> e <b>DJ Duarte</b>: quem é o DJ performático e quem é som e luz?',k:'text'},
+  {id:'falta',t:'O que ainda está em negociação ou falta contratar?',w:'Ainda sem fornecedor no orçamento: doces (Ruca, Le Brulé, brigadeiro da Lulu), luz cênica (Geovanio), transporte, móveis, bem-casados, alianças, traje do noivo, identidade visual, gerador.',k:'text'},
+  {id:'luademel',t:'Lua de mel: destinos em mente, datas e faixa de valor?',w:'Ela ainda não entrou nos R$ 221 mil do orçamento.',k:'text'},
+  {id:'convidados',t:'Onde está a lista de convidados hoje? Querem controlar confirmações no app?',k:'choice',o:['Sim, quero no app','Fica com a Éden','Ainda não temos lista'],more:true},
+  {id:'quempaga',t:'Como vocês dividem o custo do casamento? Família vai ajudar?',k:'text'},
+  {id:'eden',t:'Quem é o contato de vocês na Éden e de quanto em quanto tempo vocês se reúnem?',k:'text'}
+ ]},
+ {g:'Telas',items:[
+  {id:'fila',t:'Que filmes e séries vocês querem ver juntos agora?',k:'text'},
+  {id:'vistos',t:'O que já viram juntos e amaram? Pode dar nota.',k:'text'},
+  {id:'streams',t:'Quais streamings vocês assinam?',k:'text'}
+ ]},
+ {g:'Objetivos',items:[
+  {id:'metasRa',t:'Raquel: quais são seus 2 ou 3 objetivos para os próximos 12 meses?',k:'text'},
+  {id:'metasCasal',t:'Objetivos do casal: confirmam estes? Querem trocar ou somar algum?',w:'Do Ecossistema Vida: 2 dates por mês sem celular, treinar juntos 2 a 3 vezes por semana, montar o fundo de emergência, definir a lua de mel.',k:'text'},
+  {id:'depois',t:'Depois do casamento: quando querem comprar o imóvel? E filhos, qual o horizonte?',w:'Opcional. Serve para a Neide planejar com antecedência.',k:'text'}
+ ]},
+ {g:'Avisos',items:[
+  {id:'avisos',t:'Onde e quando querem receber avisos?',w:'Ex.: resumo do dia às 8h, lembrete de conta 2 dias antes, aniversário 7 dias antes.',k:'text'},
+  {id:'canal',t:'Qual canal funciona melhor?',k:'choice',o:['WhatsApp','E-mail','Notificação do app','Só quando eu abrir o app']}
+ ]}
+];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const NAMES={a:['Zé','var(--ze)'],b:['Raquel','var(--ra)']};
+let db=null,A={},me=ls.get('mural.me','');
+function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;document.body.append(el);setTimeout(()=>el.remove(),2000)}
+function all(){return Q.flatMap(g=>g.items)}
+function paintMe(){document.querySelectorAll('[data-me]').forEach(b=>b.classList.toggle('on',b.dataset.me===me))}
+function progress(){const n=all().filter(q=>A[q.id]).length,t=all().length;$('#pnum').textContent=n+'/'+t;$('#pbar').style.width=(n/t*100)+'%'}
+function render(){
+  $('#list').innerHTML=Q.map(g=>`<h2>${g.g}<small>${g.items.filter(q=>A[q.id]).length}/${g.items.length}</small></h2>`+g.items.map(q=>{
+    const a=A[q.id],v=a?.v;
+    let body='';
+    if(q.k==='text')body=`<textarea id="in_${q.id}" placeholder="Escreva ou dite aqui…">${esc(typeof v==='string'?v:'')}</textarea>`;
+    if(q.k==='choice'){const sel=v?.op??'';body=`<div class="opts">${q.o.map(o=>`<button class="chip ${sel===o?'on':''}" data-pick="${q.id}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>${q.more?`<textarea id="in_${q.id}" style="margin-top:8px;min-height:52px" placeholder="Detalhes (opcional)">${esc(v?.txt||'')}</textarea>`:''}`}
+    if(q.k==='dates')body=`<div class="grid"><span class="h">Pessoa</span><span class="h">Data</span>${q.list.map((p,i)=>`<label for="d_${q.id}_${i}">${esc(p)}</label><input id="d_${q.id}_${i}" inputmode="numeric" placeholder="dd/mm/aaaa" value="${esc(v?.[p]||'')}">`).join('')}</div>`;
+    if(q.k==='bills')body=`<div class="grid b3"><span class="h">Conta</span><span class="h">Valor R$</span><span class="h">Dia</span>${q.list.map(([n,val],i)=>{const o=v?.[n]||{};return `<label for="b_${q.id}_${i}">${esc(n)}</label><input id="b_${q.id}_${i}" inputmode="decimal" value="${esc(o.valor??String(val).replace('.',','))}"><input id="bd_${q.id}_${i}" inputmode="numeric" placeholder="dia" value="${esc(o.dia||'')}">`}).join('')}</div>`;
+    const by=a?`respondido por <span class="who" style="background:${NAMES[a.por]?.[1]||'var(--cy)'}">${esc(NAMES[a.por]?.[0]||'?')}</span>`:'sem resposta';
+    return `<div class="q ${a?'done':''}" id="q_${q.id}"><h3>${q.t}</h3>${q.w?`<p class="why">${q.w}</p>`:''}${body}<div class="foot"><span>${by}</span><span class="sp"></span><button class="save" data-save="${q.id}">${a?'Atualizar':'Salvar'}</button></div></div>`}).join('')).join('');
+  progress();
+}
+function collect(q){
+  if(q.k==='text'){const t=$('#in_'+q.id).value.trim();return t||null}
+  if(q.k==='choice'){const on=document.querySelector(`[data-pick="${q.id}"].on`);const txt=q.more?$('#in_'+q.id).value.trim():'';if(!on&&!txt)return null;return {op:on?.dataset.v||'',txt}}
+  if(q.k==='dates'){const o={};q.list.forEach((p,i)=>{const x=$(`#d_${q.id}_${i}`).value.trim();if(x)o[p]=x});return Object.keys(o).length?o:null}
+  if(q.k==='bills'){const o={};q.list.forEach(([n],i)=>{o[n]={valor:$(`#b_${q.id}_${i}`).value.trim(),dia:$(`#bd_${q.id}_${i}`).value.trim()}});return o}
+}
+async function saveQ(id){
+  const q=all().find(x=>x.id===id),v=collect(q);
+  if(v==null){toast('Escreva algo antes de salvar');return}
+  if(!me){toast('Escolha quem está respondendo lá em cima');window.scrollTo({top:0,behavior:'smooth'});return}
+  const doc={v,por:me,em:new Date().toISOString()};
+  try{if(db)await db.collection('answers').doc(id).set(doc);else{A[id]=doc;ls.set('mural.local',A);render()}toast('Salvo')}catch(e){toast('Não salvou. Tente de novo.')}
+}
+document.addEventListener('click',e=>{
+  const m=e.target.closest('[data-me]');if(m){me=m.dataset.me;ls.set('mural.me',me);paintMe();return}
+  const p=e.target.closest('[data-pick]');if(p){document.querySelectorAll(`[data-pick="${p.dataset.pick}"]`).forEach(b=>b.classList.toggle('on',b===p));return}
+  const s=e.target.closest('[data-save]');if(s)saveQ(s.dataset.save);
+});
+paintMe();render();
+(async()=>{
+  try{db=window.claude?.use?await window.claude.use('db'):null}catch{db=null}
+  if(!db){A=ls.get('mural.local',{});render();const st=$('#status');st.hidden=false;st.textContent='Sem conexão com o servidor. As respostas ficam só neste aparelho até a conexão voltar.';return}
+  db.collection('answers').onSnapshot(s=>{
+    const focused=document.activeElement?.id;const drafts={};
+    document.querySelectorAll('textarea,input').forEach(el=>{if(el.id)drafts[el.id]=el.value});
+    A={};s.docs.forEach(d=>A[d.id]=d.data());render();
+    Object.entries(drafts).forEach(([id,val])=>{const el=document.getElementById(id);if(el&&id===focused)el.value=val});
+    if(focused)document.getElementById(focused)?.focus();
+  },()=>{});
+})();
+</script>
+
+</body>
+</html>

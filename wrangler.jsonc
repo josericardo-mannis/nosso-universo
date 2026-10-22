@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nosso-universo",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nosso-universo",
+      // Cole aqui o "database_id" que o painel da Cloudflare mostra depois de criar o banco D1.
+      "database_id": "d3d21aa7-fdcf-4f73-8298-11eb297e13ab"
+    }
+  ],
+  // Variáveis ficam no painel da Cloudflare (Settings > Variables and secrets) e sobrevivem a cada deploy:
+  //   EMAIL_ZE, EMAIL_RAQUEL, ACCESS_TEAM_DOMAIN, ACCESS_AUD (texto) e ANTHROPIC_API_KEY (secreto).
+  //   Opcionais: NEIDE_MODEL (padrão claude-opus-5-5) e NEIDE_EFFORT (padrão low).
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}

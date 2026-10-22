@@ -1,0 +1,4 @@
+DEV_EMAIL=ze@exemplo.dev
+EMAIL_ZE=ze@exemplo.dev
+EMAIL_RAQUEL=raquel@exemplo.dev
+# ANTHROPIC_API_KEY=sk-ant-... (opcional, para testar a Neide localmente)
