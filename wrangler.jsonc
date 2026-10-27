@@ -24,6 +24,6 @@
   //   Opcionais da Google Agenda: GOOGLE_CLIENT_ID (texto) e GOOGLE_CLIENT_SECRET (secreto).
   "vars": { "APP_URL": "https://nosso-universo.jose-ricardo-857.workers.dev" },
   // Rotinas (UTC; São Paulo = UTC-3): agendas e convites a cada 5 min, recado 07:30, Conselho domingo 19:00, fechamento dia 1º 08:00.
-  "triggers": { "crons": ["*/5 * * * *", "30 10 * * *", "0 22 * * 0", "0 11 1 * *"] },
+  "triggers": { "crons": ["*/5 * * * *", "30 10 * * *", "0 22 * * SUN", "0 11 1 * *"] },
   "observability": { "enabled": true }
 }

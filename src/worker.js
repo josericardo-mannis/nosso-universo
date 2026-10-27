@@ -292,7 +292,7 @@ export default {
     const job = {
       "*/5 * * * *": () => syncRound(env),
       "30 10 * * *": () => runRoutine(env, "dia", putDoc),
-      "0 22 * * 0": () => runRoutine(env, "semana", putDoc),
+      "0 22 * * SUN": () => runRoutine(env, "semana", putDoc),
       "0 11 1 * *": () => runRoutine(env, "mes", putDoc),
     }[event.cron];
     if (!job) return mark({ fase: "sem rotina para este horário" });
