@@ -11,6 +11,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.app.created", // criar e cuidar da agenda "Gatitos"
   "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/drive.file", // só os arquivos que o app criar (planilha da ponte com o Instinct)
 ];
 const API = "https://www.googleapis.com/calendar/v3";
 const DAY_MS = 864e5;
@@ -87,7 +88,9 @@ export async function finishConnect(env, origin, url) {
   if (!r.ok || !j.refresh_token) return back("falhou");
   let email = "";
   try { email = String(decodeJwt(j.id_token).email || "").toLowerCase(); } catch {}
-  await kvSet(env, "google", { refresh_token: j.refresh_token, email, scope: j.scope || "", connected_at: Date.now() });
+  const prev = await kvGet(env, "google");
+  const keep = prev?.email === email && prev.gatitosCal ? { gatitosCal: prev.gatitosCal } : {}; // reconectar não cria outra agenda Gatitos
+  await kvSet(env, "google", { ...keep, refresh_token: j.refresh_token, email, scope: j.scope || "", connected_at: Date.now() });
   cached = { token: null, exp: 0, rt: null };
   return back("conectado");
 }
@@ -110,6 +113,7 @@ export async function googleStatus(env) {
     broken: !!g?.broken,
     email: g?.email || "",
     email_on: !!g && (g.scope || "").includes("gmail.send"),
+    files_on: !!g && (g.scope || "").includes("drive.file"),
     sync,
   };
 }
@@ -133,7 +137,7 @@ async function accessToken(env) {
   return cached.token;
 }
 
-async function gfetch(env, path, opt = {}) {
+export async function gfetch(env, path, opt = {}) {
   const token = await accessToken(env);
   if (!token) throw Object.assign(new Error("Google Agenda não conectada"), { status: 401 });
   const r = await fetch(path.startsWith("http") ? path : API + path, {

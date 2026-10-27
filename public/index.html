@@ -291,7 +291,7 @@ async function initStore(){
   try{db=window.claude?.use?await window.claude.use('db'):null}catch{db=null}
   if(db){
     mode='nuvem';
-    S.activity=window.NU?.activity||[];S.google=window.NU?.google||null;
+    S.activity=window.NU?.activity||[];S.google=window.NU?.google||null;S.instinct=window.NU?.instinct||null;
     [...COLS,...RO_COLS].forEach(c=>db.collection(c).onSnapshot(s=>{S[c]=s.docs.map(d=>({...d.data(),id:d.id}));render()},e=>{if(e.code==='revoked'){mode='local';render()}}));
     db.doc('config/casal').onSnapshot(s=>{S.cfg=s.exists?{...s.data()}:{};render()},()=>{});
   }else{mode='local';COLS.forEach(c=>S[c]=ls.get('nu2.'+c,[]));S.cfg=ls.get('nu2.cfg',{})}
@@ -311,7 +311,7 @@ async function del(col,id){try{if(db)await db.collection(col).doc(id).delete();e
 async function saveCfg(p){const n={...S.cfg,...p};try{if(db)await db.doc('config/casal').set(n);else{S.cfg=n;ls.set('nu2.cfg',n);render()}}catch{toast('Não salvou os ajustes')}}
 
 /* ================= people ================= */
-const PEOPLE=()=>{const c=cfg();return{a:{l:c.a,c:'var(--ze)'},b:{l:c.b,c:'var(--ra)'},ambos:{l:c.casal,c:'var(--gat)'},diarista:{l:'Diarista',c:'var(--dia)'},auto:{l:'Automático',c:'var(--auto)'}}};
+const PEOPLE=()=>{const c=cfg();return{a:{l:c.a,c:'var(--ze)'},b:{l:c.b,c:'var(--ra)'},ambos:{l:c.casal,c:'var(--gat)'},diarista:{l:'Diarista',c:'var(--dia)'},auto:{l:'Automático',c:'var(--auto)'},i:{l:'Instinct',c:'var(--auto)'}}};
 const tag=k=>{const p=PEOPLE()[k];return p?`<span class="tag" style="--c:${p.c}">${esc(p.l)}</span>`:''};
 const who3=()=>['a','b','ambos'].map(k=>[k,PEOPLE()[k].l]);
 const who5=()=>Object.entries(PEOPLE()).map(([k,p])=>[k,p.l]);
@@ -658,10 +658,20 @@ V.ajustes=()=>{const c=cfg();return `<div class="hud" style="padding:14px">
   <h2>Neste celular</h2><div class="hud info"><div class="row" style="margin-bottom:10px">Eu sou <button class="chip ${me()==='a'?'on':''}" data-act="iam" data-v="a">${esc(c.a)}</button><button class="chip ${me()==='b'?'on':''}" data-act="iam" data-v="b">${esc(c.b)}</button></div>
   <div class="row">Neide fala em voz alta <button class="chip ${ls.get('nu.voz',false)?'on':''}" data-act="voz">${ls.get('nu.voz',false)?'Ligado':'Desligado'}</button></div></div>
   ${googleHTML(c)}
+  ${instinctHTML(c)}
   <h2>Rotinas da Neide</h2><div class="hud info">Todo dia às 07:30 sai o recado do dia. Domingo às 19:00, a pauta do Conselho de Casa. No dia 1º, o fechamento do mês. ${S.google?.email_on?'Os recados também chegam por e-mail para os dois.':'Com a Google Agenda conectada, os recados também chegam por e-mail.'}
    ${window.NU?`<div class="row" style="margin-top:10px"><button class="btn sm ghost" data-act="rotina" data-v="dia">Gerar recado agora</button><button class="btn sm ghost" data-act="rotina" data-v="semana">Gerar pauta da semana</button><button class="chip ${c.emailRecados==='nao'?'':'on'}" data-act="emailtog">E-mail ${c.emailRecados==='nao'?'desligado':'ligado'}</button></div>`:''}</div>
   <h2>Instalar no celular</h2><div class="hud info">Abram este link no navegador do celular e usem “Adicionar à tela de início”. O Nosso Universo vira um ícone, como um app.</div>
-  <h2>Novidades</h2><div class="hud info"><p style="margin:0 0 8px"><b>23/10</b> Agenda <b>Gatitos</b> no Google: criou lá, a Raquel é convidada sozinha. Google Agenda nos dois sentidos (com convite para a Raquel), recados automáticos da Neide, aviso quando o outro mexe em algo e movimento recente na tela inicial.</p><p style="margin:0"><b>22/10</b> Site próprio na Cloudflare, login só para os dois, banco de dados próprio e microfone de verdade na Neide.</p></div>`};
+  <h2>Novidades</h2><div class="hud info"><p style="margin:0 0 8px"><b>27/10</b> Ponte com o <b>Instinct</b>: a Neide conversa com ele por uma planilha e vocês recebem avisos e fazem pedidos pelo WhatsApp.</p><p style="margin:0 0 8px"><b>23/10</b> Agenda <b>Gatitos</b> no Google: criou lá, a Raquel é convidada sozinha. Google Agenda nos dois sentidos (com convite para a Raquel), recados automáticos da Neide, aviso quando o outro mexe em algo e movimento recente na tela inicial.</p><p style="margin:0"><b>22/10</b> Site próprio na Cloudflare, login só para os dois, banco de dados próprio e microfone de verdade na Neide.</p></div>`};
+function instinctHTML(c){
+  const g=S.google,b=S.instinct;
+  if(!window.NU||!g?.connected)return '';
+  const l=b?.last,st=!l?'':l.ok?`Última rodada ${ago(l.at)}${l.pedidos?` · ${l.pedidos} pedido(s) atendido(s)`:''}.`:`Última rodada com erro: ${esc(l.erro||'')}`;
+  const acao=b?.url?`<a class="btn sm" href="${esc(b.url)}" target="_blank" rel="noopener">Abrir a planilha</a>`:me()!=='a'?`<span class="small">O ${esc(c.a)} cria a planilha aqui, pelo celular ou computador dele.</span>`:g.files_on?'<button class="btn sm" data-act="instinct">Criar a planilha da ponte</button>':'<button class="btn sm" data-act="gconnect">Reconectar Google (liberar planilha)</button>';
+  return `<h2>Ponte com o Instinct</h2><div class="hud info">O Instinct conversa com a Neide por uma planilha no Drive do ${esc(c.a)}. Na aba <b>Painel</b>, a Neide deixa o resumo do momento e o movimento recente, e o Instinct avisa no WhatsApp. Na aba <b>Pedidos</b>, o Instinct anota o que vocês pedirem no WhatsApp; a Neide registra no app e responde na mesma linha, em até 5 minutos. O que chega por lá aparece aqui como <b>Instinct</b>. Por esse caminho a Neide não apaga nada.
+   ${st?`<p class="small" style="margin:8px 0 0">${st}</p>`:''}
+   <div class="row" style="margin-top:10px">${acao}</div></div>`;
+}
 function googleHTML(c){
   const g=S.google;
   if(!window.NU)return '';
@@ -849,6 +859,7 @@ document.addEventListener('click',async e=>{
     case 'voz':ls.set('nu.voz',!ls.get('nu.voz',false));render();break;
     case 'recado':ui.recadoAberto=!ui.recadoAberto;render();break;
     case 'gconnect':location.href='/api/google/connect';break;
+    case 'instinct':try{a.disabled=true;a.textContent='Criando a planilha…';const r=await window.NU.api('/instinct/planilha',{method:'POST'});await window.NU.refresh();toast('Planilha criada no seu Drive');window.open(r.url,'_blank','noopener')}catch(err){a.disabled=false;a.textContent='Criar a planilha da ponte';toast(err.message||'Não deu agora')}break;
     case 'gsync':try{toast('Sincronizando…');const r=await window.NU.api('/google/sync',{method:'POST'});await window.NU.refresh();const bad=Object.values(r.status||{}).find(x=>!x.ok);toast(bad?'Uma agenda não sincronizou: '+bad.erro:'Agendas atualizadas')}catch(err){toast(err.message||'Não sincronizou')}break;
     case 'gdisc':if(!a.dataset.sure){a.dataset.sure='1';a.textContent='Toque de novo para desconectar';break}try{await window.NU.api('/google/disconnect',{method:'POST'});await window.NU.refresh();toast('Google desconectado')}catch(err){toast(err.message||'Não desconectou')}break;
     case 'rotina':try{a.disabled=true;a.textContent='A Neide está escrevendo…';await window.NU.api('/rotina/'+v,{method:'POST'});await window.NU.refresh();toast('Recado pronto na tela inicial');go('inicio')}catch(err){toast(err.message||'Não deu agora')}break;
@@ -882,7 +893,7 @@ document.addEventListener('click',async e=>{
 });
 
 /* ================= boot ================= */
-addEventListener('nu-meta',()=>{S.activity=window.NU?.activity||[];S.google=window.NU?.google||null;render()});
+addEventListener('nu-meta',()=>{S.activity=window.NU?.activity||[];S.google=window.NU?.google||null;S.instinct=window.NU?.instinct||null;render()});
 addEventListener('nu-activity',e=>{const a=e.detail;toast(`${PEOPLE()[a.who]?.l||'Alguém'} ${a.acao} ${a.titulo}`)});
 (()=>{const q=new URLSearchParams(location.search).get('google');if(!q)return;history.replaceState(null,'',location.pathname+location.hash);setTimeout(()=>toast({conectado:'Google Agenda conectada!',cancelado:'Conexão com o Google cancelada',expirou:'O link expirou, tentem de novo',falhou:'O Google não devolveu a autorização. Tentem de novo'}[q]||q),600)})();
 route();initStore();

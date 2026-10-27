@@ -146,3 +146,17 @@ src/worker.js       API: /api/me, /api/data, /api/doc/:col/:id, /api/neide
 db/schema.sql       tabela única de documentos
 db/seed.sql         dados migrados do app no claude.ai
 ```
+
+## Ponte com o Instinct (WhatsApp)
+
+O Instinct não tem API, então a Neide conversa com ele por uma planilha no Drive do Zé (`src/bridge.js`):
+
+- **Painel**: a Neide reescreve a cada 5 minutos com agenda, casa, contas, casamento e o movimento recente. O Instinct lê e avisa no WhatsApp.
+- **Pedidos**: o Instinct acrescenta linhas com Quando, Quem pediu e Pedido. A Neide atende (cria evento, marca tarefa, paga conta, responde perguntas) e preenche Status, Resposta e Respondido em. Por esse canal ela não apaga nada.
+
+Para ligar:
+1. No Google Cloud do projeto da agenda: **APIs & Services → Library → Google Sheets API → Enable**.
+2. No app: **Ajustes → Ponte com o Instinct → Reconectar Google** e aceitar a permissão nova (acesso só aos arquivos criados pelo app).
+3. **Criar a planilha da ponte**. Ela abre no Drive do Zé.
+4. Se o Instinct usar outra conta Google, compartilhe a planilha com ela como Editor.
+5. Passe ao Instinct as instruções da aba **Como usar**.

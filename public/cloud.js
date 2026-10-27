@@ -5,7 +5,7 @@
   window.NU_SITE = true;
   const POLL_MS = 10000;
   // Metadados para o app: atividade recente, status do Google e quem sou eu.
-  window.NU = { activity: [], google: null, me: null };
+  window.NU = { activity: [], google: null, instinct: null, me: null };
   let lastAct = null;
   let cache = {}; // col -> Map(id -> data)
   let loaded = false, sig = "", writeSeq = 0, pending = 0;
@@ -44,7 +44,7 @@
   function metaUpdate(r) {
     const acts = r.activity || [];
     const newest = acts[0]?.id || 0;
-    const metaSig = newest + "|" + JSON.stringify(r.google || {});
+    const metaSig = newest + "|" + JSON.stringify(r.google || {}) + "|" + JSON.stringify(r.instinct || {});
     const changed = metaSig !== window.NU._sig;
     // Avisa só o que a OUTRA pessoa fez desde a última leitura (não no primeiro carregamento).
     if (lastAct !== null && newest > lastAct) {
@@ -54,6 +54,7 @@
     lastAct = newest;
     window.NU.activity = acts;
     window.NU.google = r.google || null;
+    window.NU.instinct = r.instinct || null;
     window.NU._sig = metaSig;
     if (changed) window.dispatchEvent(new CustomEvent("nu-meta"));
   }

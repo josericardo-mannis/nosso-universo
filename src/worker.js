@@ -8,6 +8,7 @@ import {
   pullCalendars, mirrorEvent, deleteMirror, MIRROR_FIELDS, todayBR,
 } from "./google.js";
 import { runRoutine } from "./routines.js";
+import { ensureBridge, bridgeInfo, runBridge } from "./bridge.js";
 
 const COLS = new Set(["ev", "tasks", "bills", "fin", "vend", "wed", "ideas", "watch", "goals", "bday", "config", "answers"]);
 const READ_ONLY = new Set(["gcal", "brief"]); // preenchidas pelo servidor, o app só lê
@@ -140,6 +141,18 @@ async function syncEvent(env, id) {
   }
 }
 
+/* ---------- rodada de 5 minutos: Google Agenda + ponte com o Instinct ---------- */
+async function syncRound(env, maxPedidos) {
+  const cfg = (await getDoc(env, "config", "casal")) || {};
+  const res = await pullCalendars(env, cfg);
+  const pend = [];
+  const fakeCtx = { waitUntil: (p) => pend.push(p) };
+  const store = { write: (col, id, data) => writeDoc(env, fakeCtx, col, id, data, "instinct", "i") };
+  const bridge = await runBridge(env, store, maxPedidos).catch((err) => ({ ok: false, erro: String(err) }));
+  await Promise.allSettled(pend);
+  return { ...res, bridge };
+}
+
 /* ---------- Neide ---------- */
 async function neide(request, env) {
   if (!env.ANTHROPIC_API_KEY) return fail(503, "sampling_disabled", "A chave da Anthropic ainda não foi cadastrada no painel da Cloudflare.");
@@ -191,9 +204,11 @@ async function handleApi(request, env, ctx) {
       const claim = await env.DB.prepare(
         "INSERT INTO kv (k, v) VALUES ('sync_claim', ?1) ON CONFLICT (k) DO UPDATE SET v = excluded.v WHERE CAST(kv.v AS INTEGER) < ?2",
       ).bind(String(now), now - SYNC_EVERY).run();
-      if (claim.meta.changes) ctx.waitUntil(getDoc(env, "config", "casal").then((cfg) => pullCalendars(env, cfg || {})).catch((err) => console.error("sync", err)));
+      if (claim.meta.changes) ctx.waitUntil(syncRound(env, 1).catch((err) => console.error("sync", err)));
     }
-    return json({ docs, activity, google, now });
+    const b = await bridgeInfo(env);
+    const instinct = b ? { url: b.url, last: b.last || null } : null;
+    return json({ docs, activity, google, instinct, now });
   }
 
   if (parts[0] === "doc") {
@@ -226,14 +241,23 @@ async function handleApi(request, env, ctx) {
       return startConnect(env, url.origin);
     }
     if (parts[1] === "callback" && request.method === "GET") return finishConnect(env, url.origin, url);
-    if (parts[1] === "sync" && request.method === "POST") {
-      const cfg = (await getDoc(env, "config", "casal")) || {};
-      return json(await pullCalendars(env, cfg));
-    }
+    if (parts[1] === "sync" && request.method === "POST") return json(await syncRound(env, 2));
     if (parts[1] === "disconnect" && request.method === "POST") {
       if (who !== "a") return fail(403, "not_granted", "Só o Zé pode desconectar.");
       await disconnect(env);
       return json({ ok: true });
+    }
+  }
+
+  if (parts[0] === "instinct" && parts[1] === "planilha" && request.method === "POST") {
+    if (who !== "a") return fail(403, "not_granted", "Quem cria a planilha é o Zé (ela fica no Drive dele).");
+    try {
+      const info = await ensureBridge(env);
+      const last = await runBridge(env, { write: (col, id, data) => writeDoc(env, ctx, col, id, data, "instinct", "i") });
+      return json({ url: info.url, last });
+    } catch (err) {
+      if (err.status === 403 || err.status === 401) return fail(403, "not_granted", "O Google recusou: ative a Google Sheets API no projeto e reconecte o Google aceitando a nova permissão.");
+      throw err;
     }
   }
 
@@ -266,7 +290,7 @@ export default {
       .bind(JSON.stringify({ cron: event.cron, at: Date.now(), ...extra })).run().catch(() => {});
     await mark({ fase: "inicio" });
     const job = {
-      "*/5 * * * *": async () => pullCalendars(env, (await getDoc(env, "config", "casal")) || {}),
+      "*/5 * * * *": () => syncRound(env),
       "30 10 * * *": () => runRoutine(env, "dia", putDoc),
       "0 22 * * 0": () => runRoutine(env, "semana", putDoc),
       "0 11 1 * *": () => runRoutine(env, "mes", putDoc),
