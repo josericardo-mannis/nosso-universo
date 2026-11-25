@@ -54,7 +54,8 @@ export function snapshot(S, today = todayBR()) {
   const m = today.slice(0, 7);
   const dueOf = (t) => (t.ultima ? addD(t.ultima, +t.freq || 7) : today);
   const rot = (S.tasks || []).filter((t) => t.tipo !== "unica");
-  const atrasadas = rot.filter((t) => (+t.freq || 7) > 1 && dueOf(t) < today).map((t) => `${t.titulo} (${diffD(today, dueOf(t))}d)`);
+  // Rotinas da casa são lembretes e boas práticas, não cobrança: sem contar dias de atraso.
+  const atrasadas = rot.filter((t) => (+t.freq || 7) > 1 && dueOf(t) < today).map((t) => t.titulo);
   const deHoje = rot.filter((t) => (+t.freq || 7) > 1 && dueOf(t) === today).map((t) => t.titulo);
   const pendencias = (S.tasks || []).filter((t) => t.tipo === "unica" && !t.feito && t.prazo && t.prazo <= addD(today, 7)).map((t) => `${t.titulo} (prazo ${t.prazo})`);
   const contas = (S.bills || []).filter((b) => (!b.fim || b.fim >= m) && !(b.pagos || []).includes(m));
@@ -74,7 +75,7 @@ export function snapshot(S, today = todayBR()) {
     diasParaOCasamento: diffD(c.casamento, today),
     agendaHoje: agendaDoDia(S, today),
     proximos7dias: semana,
-    tarefasAtrasadas: atrasadas,
+    lembretesDaCasa: atrasadas,
     tarefasDeHoje: deHoje,
     pendenciasComPrazo: pendencias,
     contasDoMesAPagar: contas.map((b) => `${b.nome} ${brl(b.valor)}${b.dia ? ` dia ${b.dia}` : ""}`),
@@ -94,7 +95,7 @@ async function activitySummary(env, sinceMs) {
 }
 
 const PEDIDOS = {
-  dia: "Escreva o RECADO DO DIA: no máximo 8 linhas curtas. Comece com uma saudação aos Gatitos e o dia. Depois: o que tem hoje na agenda, o que da casa chegou a vez (diga só os 3 mais importantes), conta ou parcela que vence perto, e uma data especial se estiver chegando. Termine com uma frase leve ou provocação boa. Se o dia estiver tranquilo, diga isso.",
+  dia: "Escreva o RECADO DO DIA: no máximo 8 linhas curtas. Comece com uma saudação aos Gatitos e o dia. Depois: o que tem hoje na agenda, até 3 lembretes da casa em tom de sugestão (sem falar em atraso), conta ou parcela que vence perto, e uma data especial se estiver chegando. Termine com uma frase leve ou provocação boa. Se o dia estiver tranquilo, diga isso.",
   semana: "Escreva a PAUTA DO CONSELHO DE CASA deste domingo: 4 blocos curtos com título (Agenda da semana, Casa, Dinheiro, Casamento). Em cada bloco, 1 a 3 itens objetivos. Inclua o placar da semana (quem marcou mais tarefas) com humor e 1 pergunta para os dois conversarem. Máximo 18 linhas.",
   mes: "Escreva o FECHAMENTO DO MÊS: o que funcionou, o que travou, contas e parcelas do casamento, placar do mês entre os dois e um lembrete para o check-in das metas. Termine com 1 meta pequena para o mês que começa. Máximo 16 linhas.",
 };
@@ -103,7 +104,7 @@ async function writeWithNeide(env, tipo, dados) {
   const fallback = () => {
     const linhas = [`Oi, Gatitos! ${dados.hoje}.`];
     if (dados.agendaHoje?.length) linhas.push(`Hoje: ${dados.agendaHoje.join("; ")}.`);
-    if (dados.tarefasAtrasadas?.length) linhas.push(`Na casa, chegou a vez de: ${dados.tarefasAtrasadas.slice(0, 3).join(", ")}.`);
+    if (dados.lembretesDaCasa?.length) linhas.push(`Lembretes da casa: ${dados.lembretesDaCasa.slice(0, 3).join(", ")}.`);
     if (dados.parcelasCasamentoDoMes?.length) linhas.push(`Casório: parcelas do mês em aberto (${dados.parcelasCasamentoDoMes.length}).`);
     if (dados.proximasDatasEspeciais?.length) linhas.push(`Vem aí: ${dados.proximasDatasEspeciais[0]}.`);
     linhas.push(`Faltam ${dados.diasParaOCasamento} dias para o sim.`);
@@ -118,7 +119,7 @@ async function writeWithNeide(env, tipo, dados) {
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       output_config: { effort: "low" },
-      system: "Você é a NEIDE, assistente virtual do casal Zé e Raquel, os Gatitos. Português do Brasil, tom carinhoso, prático e com humor leve. Texto puro, sem markdown, sem asteriscos; use quebras de linha. Use só os dados fornecidos, sem inventar compromissos.",
+      system: "Você é a NEIDE, assistente virtual do casal Zé e Raquel, os Gatitos. Português do Brasil, tom carinhoso, prático e com humor leve. Texto puro, sem markdown, sem asteriscos; use quebras de linha. Use só os dados fornecidos, sem inventar compromissos. As rotinas da casa são lembretes e boas práticas, nunca cobrança: não fale em atraso, dias sem fazer ou pendência.",
       messages: [{ role: "user", content: `${PEDIDOS[tipo]}\n\nDados (JSON):\n${JSON.stringify(dados)}` }],
     });
     if (r.stop_reason === "refusal") return fallback();
